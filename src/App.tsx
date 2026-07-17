@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type PointerEvent as ReactPointerEvent } from "react";
 import {
   MODES,
   calculateTotals,
@@ -14,16 +14,26 @@ import {
 } from "./game";
 
 type Screen = "start" | "plan" | "checkpoint" | "result";
+type DragSource = "shelf" | "table";
+type ActiveDrag = {
+  item: GameItem;
+  source: DragSource;
+  pointerId: number;
+  startX: number;
+  startY: number;
+  x: number;
+  y: number;
+};
 const CATEGORIES: ReadonlyArray<{ id: CategoryId; label: string }> = [
   { id: "gerimai", label: "Gėrimai" },
   { id: "uzkandziai", label: "Užkandžiai" },
   { id: "veikla", label: "Veikla" },
   { id: "papildomai", label: "Papildomai" },
 ];
-const MODE_VISUALS: Record<ModeId, { action: string; detail: string }> = {
-  paprasta: { action: "Rinkis", detail: "Ko reikia šventei?" },
-  iprasta: { action: "Skaičiuok", detail: "Ar užteks visiems?" },
-  issukis: { action: "Reaguok", detail: "Kas nutiks planui?" },
+const MODE_VISUALS: Record<ModeId, { number: string; callout: string }> = {
+  paprasta: { number: "1", callout: "Rinkis" },
+  iprasta: { number: "2", callout: "Skaičiuok" },
+  issukis: { number: "3", callout: "Reaguok" },
 };
 const formatEuros = (value: number) => `${value} €`;
 
@@ -116,7 +126,7 @@ export function App() {
       )}
       {screen === "result" && (
         <ResultScreen mode={mode} plan={snapshotPlan(mode, selection, totals)} comparison={comparison}
-          surpriseRevealed={surpriseRevealed} onRetry={tryAnotherPlan} onHome={returnHome} />
+          surpriseRevealed={surpriseRevealed} selection={selection} onRetry={tryAnotherPlan} onHome={returnHome} />
       )}
       {showHelp && <HelpDialog onClose={() => setShowHelp(false)} />}
     </div>
@@ -145,38 +155,26 @@ function StartScreen({ onStart }: { onStart: (modeId: ModeId) => void }) {
   return (
     <main className="start-screen">
       <section className="start-intro">
-        <div>
-          <p className="eyebrow">Misija visai klasei</p>
-          <h1>Surenkite šventę.<br /><span>Neviršykite biudžeto!</span></h1>
-          <p className="lead">Tarkitės, balsuokite ir sukurkite planą, kuris tiks visai klasei.</p>
-        </div>
-        <div className="how-it-works" aria-label="Trys žaidimo žingsniai">
-          <div><span>1</span><p><strong>Tarkitės</strong><small>komandomis</small></p></div>
-          <div><span>2</span><p><strong>Balsuokite</strong><small>už pasirinkimą</small></p></div>
-          <div><span>3</span><p><strong>Tikrinkite</strong><small>klasės planą</small></p></div>
-        </div>
+        <p className="eyebrow">Klasės misija</p>
+        <h1>Atverkite duris į<br /><span>klasės šventę!</span></h1>
+        <p className="lead">Pasirinkite lygį. Tada tempkite daiktus ant šventės stalo ir saugokite biudžetą.</p>
       </section>
-      <section className="mode-section" aria-labelledby="mode-heading">
-        <div className="section-heading">
-          <div><p className="eyebrow">Pasiruošę?</p><h2 id="mode-heading">Pasirinkite lygį</h2></div>
-          <p>Mokytojas valdo žaidimą, klasė priima sprendimus.</p>
-        </div>
-        <div className="mode-grid">
-          {MODES.map((mode, index) => (
-            <article className={`mode-card mode-card-${mode.id}`} key={mode.id}>
-              <div className="mode-card-top"><span className="mode-number">{index + 1} lygis</span><span className="duration">{mode.duration}</span></div>
-              <div className="mode-visual" aria-hidden="true"><span>{MODE_VISUALS[mode.id].action}</span><strong>{MODE_VISUALS[mode.id].detail}</strong></div>
-              <p className="grade-label">{mode.grades}</p>
-              <h3>{mode.title}</h3><p>{mode.summary}</p>
-              <dl className="mode-facts">
-                <div><dt>Biudžetas</dt><dd>{formatEuros(mode.budget)}</dd></div>
-                <div><dt>Rezervas</dt><dd>{formatEuros(mode.reserve)}</dd></div>
-              </dl>
-              <button className="primary-button" type="button" onClick={() => onStart(mode.id)}>Žaisti</button>
-            </article>
-          ))}
-        </div>
+      <section className="level-room" aria-labelledby="mode-heading">
+        <h2 id="mode-heading" className="visually-hidden">Pasirinkite lygį</h2>
+        {MODES.map((mode) => (
+          <article className={`level-door level-door-${mode.id}`} key={mode.id}>
+            <div className="door-top" aria-hidden="true"><span>{MODE_VISUALS[mode.id].number}</span></div>
+            <div className="door-face">
+              <p>{mode.grades}</p>
+              <strong>{mode.title}</strong>
+              <small>{MODE_VISUALS[mode.id].callout}</small>
+              <div className="door-budget"><span>{formatEuros(mode.budget)}</span><span>rezervas {formatEuros(mode.reserve)}</span></div>
+              <button type="button" onClick={() => onStart(mode.id)}>Atverti</button>
+            </div>
+          </article>
+        ))}
       </section>
+      <p className="start-footer">Mokytojas valdo ekraną · klasė tariasi ir balsuoja</p>
     </main>
   );
 }
@@ -185,116 +183,208 @@ function PlanScreen({ mode, selection, category, problems, surpriseRevealed, onC
   mode: GameMode; selection: Selection; category: CategoryId; problems: readonly string[]; surpriseRevealed: boolean;
   onCategory: (category: CategoryId) => void; onQuantity: (item: GameItem, change: number) => void; onCheck: () => void;
 }) {
+  const [drag, setDrag] = useState<ActiveDrag | null>(null);
   const totals = calculateTotals(mode, selection);
   const people = (mode.participants ?? 0) + (surpriseRevealed ? (mode.surpriseGuests ?? 0) : 0);
   const categoryItems = mode.items.filter((item) => item.category === category);
   const selectedItems = mode.items.filter((item) => (selection[item.id] ?? 0) > 0);
-  const spentPercent = Math.min(100, Math.max(0, (totals.spent / mode.budget) * 100));
-  const overBudget = totals.remaining < 0;
+  const selectedByCategory = (categoryId: CategoryId) => selectedItems.filter((item) => item.category === categoryId);
+
+  function beginDrag(event: ReactPointerEvent<HTMLElement>, item: GameItem, source: DragSource) {
+    if (event.button !== 0) return;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setDrag({ item, source, pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, x: event.clientX, y: event.clientY });
+  }
+
+  function moveDrag(event: ReactPointerEvent<HTMLElement>) {
+    if (drag === null || event.pointerId !== drag.pointerId) return;
+    setDrag((current) => current === null ? null : { ...current, x: event.clientX, y: event.clientY });
+  }
+
+  function finishDrag(event: ReactPointerEvent<HTMLElement>) {
+    if (drag === null || event.pointerId !== drag.pointerId) return;
+    const completedDrag = drag;
+    const moved = Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) > 10;
+    const target = document.elementFromPoint(event.clientX, event.clientY) as HTMLElement | null;
+    const dropZone = target?.closest<HTMLElement>("[data-drop-category]");
+    const droppedOnShelf = target?.closest<HTMLElement>("[data-drop-shelf]") !== null;
+    setDrag(null);
+
+    if (completedDrag.source === "shelf") {
+      if (!moved || dropZone?.dataset.dropCategory === completedDrag.item.category) onQuantity(completedDrag.item, 1);
+    } else if (!moved || droppedOnShelf) {
+      onQuantity(completedDrag.item, -1);
+    }
+  }
+
+  function cancelDrag(event: ReactPointerEvent<HTMLElement>) {
+    if (drag !== null && event.pointerId === drag.pointerId) setDrag(null);
+  }
+
   return (
     <main className="game-screen">
-      <section className={`mission-strip ${surpriseRevealed ? "mission-strip-alert" : ""}`}>
+      <section className={`table-mission ${surpriseRevealed ? "table-mission-alert" : ""}`}>
         <div>
           <p className="eyebrow">{surpriseRevealed ? "Netikėtas įvykis!" : `Misija · ${mode.grades}`}</p>
           <h1>{surpriseRevealed ? `Dabar dalyvaus ${people} mokiniai` : mode.title}</h1>
-          <p>{surpriseRevealed
-            ? `Prisijungė ${mode.surpriseGuests} svečiai. Papildykite planą neviršydami biudžeto.`
-            : mode.participants === undefined
-              ? `Pasirinkite gėrimą, užkandį ir bendrą veiklą. Palikite bent ${mode.reserve} € rezerve.`
-              : `Paruoškite gėrimų ir užkandžių ${people} mokiniams, pasirinkite veiklą ir palikite ${mode.reserve} € rezerve.`}</p>
         </div>
-        <div className={`budget-summary ${overBudget ? "budget-over" : ""}`} aria-live="polite">
-          <div><span>Biudžetas</span><strong>{formatEuros(mode.budget)}</strong></div>
-          <div><span>Išleista</span><strong>{formatEuros(totals.spent)}</strong></div>
-          <div className="remaining"><span>Liko</span><strong>{formatEuros(totals.remaining)}</strong></div>
-          <div className="budget-track" aria-hidden="true"><span style={{ width: `${spentPercent}%` }} /></div>
-        </div>
+        <div className="people-badge"><span aria-hidden="true">● ● ●</span><strong>{mode.participants === undefined ? "Visa klasė" : `${people} mokiniai`}</strong></div>
       </section>
-      <div className="game-layout">
-        <section className="shop-panel" aria-labelledby="shop-heading">
-          <div className="panel-heading">
-            <div><p className="step-label">Rinkitės</p><h2 id="shop-heading">Šventės parduotuvė</h2></div>
-            <p>Pirma aptarkite, tada spauskite.</p>
+
+      {problems.length > 0 && (
+        <div className="table-feedback" role="alert"><strong>{problems[0]}</strong>{problems.length > 1 && <span>Dar {problems.length - 1}</span>}</div>
+      )}
+
+      <div className="table-workspace">
+        <aside className="supply-shelf" data-drop-shelf aria-labelledby="shelf-heading">
+          <div className="shelf-title"><span>Daiktų lentyna</span><strong id="shelf-heading">Ką dedame?</strong></div>
+          <div className="shelf-categories" aria-label="Pasirinkimų grupės">
+            {CATEGORIES.map((item) => (
+              <button key={item.id} type="button" aria-pressed={category === item.id} className={category === item.id ? "active" : ""} onClick={() => onCategory(item.id)}>
+                {item.label}
+              </button>
+            ))}
           </div>
-          <div className="category-tabs" role="tablist" aria-label="Pasirinkimų grupės">
-            {CATEGORIES.map((item) => {
-              const count = mode.items.filter((candidate) => candidate.category === item.id).reduce((sum, candidate) => sum + (selection[candidate.id] ?? 0), 0);
-              return <button key={item.id} type="button" role="tab" aria-selected={category === item.id} className={category === item.id ? "active" : ""} onClick={() => onCategory(item.id)}>
-                {item.label}{count > 0 && <span>{count}</span>}
-              </button>;
-            })}
+          <div className="shelf-items">
+            {categoryItems.map((item) => (
+              <ShelfItem key={item.id} item={item} quantity={selection[item.id] ?? 0}
+                onPlace={() => onQuantity(item, 1)} onPointerDown={(event) => beginDrag(event, item, "shelf")}
+                onPointerMove={moveDrag} onPointerUp={finishDrag} onPointerCancel={cancelDrag} />
+            ))}
           </div>
-          <div className="item-grid" role="tabpanel">
-            {categoryItems.map((item) => <ItemCard key={item.id} item={item} quantity={selection[item.id] ?? 0}
-              allowMultiple={mode.participants !== undefined && (item.category === "gerimai" || item.category === "uzkandziai")}
-              onChange={(change) => onQuantity(item, change)} />)}
+          <p className="shelf-help">Tempkite ant stalo<br />arba palieskite.</p>
+        </aside>
+
+        <section className="party-scene" aria-label="Klasės šventės stalas">
+          <div className="party-table">
+            <TableZone category="papildomai" title="Papuošimai" items={selectedByCategory("papildomai")} selection={selection}
+              onRemove={(item) => onQuantity(item, -1)} onPointerDown={beginDrag} onPointerMove={moveDrag} onPointerUp={finishDrag} onPointerCancel={cancelDrag} />
+            <div className="main-place-settings">
+              <TableZone category="gerimai" title="Gėrimai" items={selectedByCategory("gerimai")} selection={selection}
+                people={mode.participants === undefined ? undefined : people} covered={totals.drinkPortions}
+                attention={problems.length > 0 && (mode.participants === undefined ? !totals.hasDrink : totals.drinkPortions < people)}
+                onRemove={(item) => onQuantity(item, -1)} onPointerDown={beginDrag} onPointerMove={moveDrag} onPointerUp={finishDrag} onPointerCancel={cancelDrag} />
+              <TableZone category="uzkandziai" title="Užkandžiai" items={selectedByCategory("uzkandziai")} selection={selection}
+                people={mode.participants === undefined ? undefined : people} covered={totals.snackPortions}
+                attention={problems.length > 0 && (mode.participants === undefined ? !totals.hasSnack : totals.snackPortions < people)}
+                onRemove={(item) => onQuantity(item, -1)} onPointerDown={beginDrag} onPointerMove={moveDrag} onPointerUp={finishDrag} onPointerCancel={cancelDrag} />
+            </div>
+            <TableZone category="veikla" title="Bendra veikla" items={selectedByCategory("veikla")} selection={selection}
+              attention={problems.length > 0 && !totals.hasActivity} onRemove={(item) => onQuantity(item, -1)} onPointerDown={beginDrag} onPointerMove={moveDrag} onPointerUp={finishDrag} onPointerCancel={cancelDrag} />
           </div>
         </section>
-        <aside className="plan-panel" aria-labelledby="plan-heading">
-          <div className="panel-heading compact"><div><p className="step-label">Jūsų komanda</p><h2 id="plan-heading">Klasės planas</h2></div></div>
-          <Requirements mode={mode} selection={selection} surpriseRevealed={surpriseRevealed} />
-          {problems.length > 0 && <div className="feedback-box" role="alert"><strong>Planą dar pataisykite</strong><ul>{problems.map((problem) => <li key={problem}>{problem}</li>)}</ul></div>}
-          <div className="receipt">
-            <h3>Pasirinkta</h3>
-            {selectedItems.length === 0 ? <p className="empty-receipt">Kol kas nieko. Pradėkite nuo gėrimų.</p> : (
-              <ul>{selectedItems.map((item) => {
-                const quantity = selection[item.id] ?? 0;
-                return <li key={item.id}>
-                  <div><strong>{item.name}</strong>{quantity > 1 && <span> × {quantity}</span>}</div>
-                  <div><span>{formatEuros(item.price * quantity)}</span><button type="button" onClick={() => onQuantity(item, -quantity)} aria-label={`Pašalinti: ${item.name}`}>Pašalinti</button></div>
-                </li>;
-              })}</ul>
-            )}
-          </div>
-          <button className="check-button" type="button" onClick={onCheck}>Patikrinkime planą</button>
-        </aside>
       </div>
+
+      <MoneyTray mode={mode} spent={totals.spent} remaining={totals.remaining} surpriseRevealed={surpriseRevealed}
+        attention={problems.length > 0 && (totals.spent > mode.budget || (!surpriseRevealed && totals.remaining < mode.reserve))} onCheck={onCheck} />
+
+      {drag !== null && <div className={`drag-ghost ghost-${drag.item.category}`} style={{ left: drag.x, top: drag.y }}>{drag.item.name}<strong>{formatEuros(drag.item.price)}</strong></div>}
     </main>
   );
 }
 
-function ItemCard({ item, quantity, allowMultiple, onChange }: {
-  item: GameItem; quantity: number; allowMultiple: boolean; onChange: (change: number) => void;
+function ShelfItem({ item, quantity, onPlace, onPointerDown, onPointerMove, onPointerUp, onPointerCancel }: {
+  item: GameItem;
+  quantity: number;
+  onPlace: () => void;
+  onPointerDown: (event: ReactPointerEvent<HTMLElement>) => void;
+  onPointerMove: (event: ReactPointerEvent<HTMLElement>) => void;
+  onPointerUp: (event: ReactPointerEvent<HTMLElement>) => void;
+  onPointerCancel: (event: ReactPointerEvent<HTMLElement>) => void;
 }) {
-  const selected = quantity > 0;
   return (
-    <article className={`item-card item-${item.category} ${selected ? "selected" : ""}`}>
-      <div className="item-placeholder" aria-hidden="true"><span>{item.name}</span></div>
-      <div className="item-copy"><div><p>{item.note}</p><h3>{item.name}</h3></div><strong className="item-price">{formatEuros(item.price)}</strong></div>
-      {allowMultiple && selected ? (
-        <div className="quantity-control" aria-label={`${item.name} kiekis`}>
-          <button type="button" onClick={() => onChange(-1)} aria-label="Sumažinti kiekį">−</button>
-          <span><small>Kiekis</small><strong>{quantity}</strong></span>
-          <button type="button" onClick={() => onChange(1)} aria-label="Padidinti kiekį">+</button>
-        </div>
-      ) : <button className="add-button" type="button" onClick={() => onChange(selected ? -1 : 1)}>{selected ? "Pašalinti" : "Pasirinkti"}</button>}
-    </article>
+    <div className={`shelf-item shelf-item-${item.category}`} role="button" tabIndex={0}
+      aria-label={`${item.name}, ${formatEuros(item.price)}. Palieskite arba tempkite ant stalo.`}
+      onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerCancel}
+      onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onPlace(); } }}>
+      <div className="shelf-item-picture" aria-hidden="true"><span>{item.name.slice(0, 1)}</span></div>
+      <div className="shelf-item-copy"><strong>{item.name}</strong><small>{item.note}</small></div>
+      <div className="shelf-item-price">{formatEuros(item.price)}</div>
+      {quantity > 0 && <span className="on-table-count">Ant stalo: {quantity}</span>}
+    </div>
   );
 }
 
-function Requirements({ mode, selection, surpriseRevealed }: { mode: GameMode; selection: Selection; surpriseRevealed: boolean }) {
-  const totals = calculateTotals(mode, selection);
-  const people = (mode.participants ?? 0) + (surpriseRevealed ? (mode.surpriseGuests ?? 0) : 0);
-  const reserveNeeded = surpriseRevealed ? 0 : mode.reserve;
-  const rows = mode.participants === undefined
-    ? [
-        { label: "Gėrimas", value: totals.hasDrink ? "Pasirinkta" : "Trūksta", done: totals.hasDrink },
-        { label: "Užkandis", value: totals.hasSnack ? "Pasirinkta" : "Trūksta", done: totals.hasSnack },
-        { label: "Bendra veikla", value: totals.hasActivity ? "Pasirinkta" : "Trūksta", done: totals.hasActivity },
-      ]
-    : [
-        { label: "Gėrimų porcijos", value: `${totals.drinkPortions} / ${people}`, done: totals.drinkPortions >= people },
-        { label: "Užkandžių porcijos", value: `${totals.snackPortions} / ${people}`, done: totals.snackPortions >= people },
-        { label: "Bendra veikla", value: totals.hasActivity ? "Pasirinkta" : "Trūksta", done: totals.hasActivity },
-      ];
-  return <div className="requirements">
-    {rows.map((row) => <div className={row.done ? "done" : ""} key={row.label}>
-      <span className="status-mark" aria-hidden="true">{row.done ? "✓" : "·"}</span><span>{row.label}</span><strong>{row.value}</strong>
-    </div>)}
-    {reserveNeeded > 0 && <div className={totals.remaining >= reserveNeeded ? "done" : ""}>
-      <span className="status-mark" aria-hidden="true">{totals.remaining >= reserveNeeded ? "✓" : "·"}</span><span>Rezervas</span><strong>bent {formatEuros(reserveNeeded)}</strong>
-    </div>}
-  </div>;
+function TableZone({ category, title, items, selection, people, covered = 0, attention = false, onPointerDown, onPointerMove, onPointerUp, onPointerCancel, onRemove }: {
+  category: CategoryId;
+  title: string;
+  items: readonly GameItem[];
+  selection: Selection;
+  people?: number;
+  covered?: number;
+  attention?: boolean;
+  onPointerDown: (event: ReactPointerEvent<HTMLElement>, item: GameItem, source: DragSource) => void;
+  onPointerMove: (event: ReactPointerEvent<HTMLElement>) => void;
+  onPointerUp: (event: ReactPointerEvent<HTMLElement>) => void;
+  onPointerCancel: (event: ReactPointerEvent<HTMLElement>) => void;
+  onRemove?: (item: GameItem) => void;
+}) {
+  return (
+    <section className={`table-zone zone-${category} ${attention ? "zone-attention" : ""}`}
+      data-drop-category={category} data-zone-title={title} aria-label={title}>
+      <div className="placed-items">
+        {items.map((item) => {
+          const quantity = selection[item.id] ?? 0;
+          return (
+            <div key={item.id} className={`placed-item placed-${category}`} role="button" tabIndex={0}
+              aria-label={`${item.name}, kiekis ${quantity}. Palieskite, kad nuimtumėte vieną.`}
+              onPointerDown={(event) => onPointerDown(event, item, "table")} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerCancel}
+              onKeyDown={(event) => { if ((event.key === "Enter" || event.key === " ") && onRemove !== undefined) { event.preventDefault(); onRemove(item); } }}>
+              <span aria-hidden="true">{item.name.slice(0, 1)}</span><strong>{item.name}</strong>{quantity > 1 && <b>×{quantity}</b>}
+            </div>
+          );
+        })}
+      </div>
+      {(category === "gerimai" || category === "uzkandziai") && (
+        <SeatDots people={people} covered={covered} hasChoice={items.length > 0} />
+      )}
+    </section>
+  );
+}
+
+function SeatDots({ people, covered, hasChoice }: { people?: number; covered: number; hasChoice: boolean }) {
+  if (people === undefined) {
+    return <div className={`simple-coverage ${hasChoice ? "covered" : ""}`}><span>{hasChoice ? "Užtenka klasei" : "Dar nepasirinkta"}</span></div>;
+  }
+  const filled = Math.min(people, covered);
+  return (
+    <div className={`seat-meter ${covered >= people ? "covered" : ""}`}>
+      <div className="seat-dots" aria-hidden="true">
+        {Array.from({ length: people }, (_, index) => <i className={index < filled ? "filled" : ""} key={index} />)}
+      </div>
+      <strong>{covered >= people ? `Užtenka ${people}` : `Trūksta ${people - covered}`}</strong>
+    </div>
+  );
+}
+
+function MoneyTray({ mode, spent, remaining, surpriseRevealed, attention, onCheck }: {
+  mode: GameMode;
+  spent: number;
+  remaining: number;
+  surpriseRevealed: boolean;
+  attention: boolean;
+  onCheck: () => void;
+}) {
+  const lockedReserve = surpriseRevealed ? 0 : mode.reserve;
+  const spendable = Math.max(0, remaining - lockedReserve);
+  const visibleCoins = Math.min(12, spendable);
+  return (
+    <section className={`money-tray ${attention ? "money-attention" : ""}`} aria-label="Biudžeto dėklas">
+      <div className="spent-pile"><span>Išleista</span><strong>{formatEuros(spent)}</strong></div>
+      <div className="loose-money">
+        <div><span>Galima išleisti</span><strong>{formatEuros(spendable)}</strong></div>
+        <div className="coin-row" aria-hidden="true">
+          {Array.from({ length: visibleCoins }, (_, index) => <i key={index}>€</i>)}
+          {spendable > visibleCoins && <b>+{spendable - visibleCoins}</b>}
+        </div>
+      </div>
+      <div className={`reserve-envelope ${surpriseRevealed ? "open" : ""}`}>
+        <span>{surpriseRevealed ? "Rezervas atidarytas" : "Užrakintas rezervas"}</span>
+        <strong>{surpriseRevealed ? "Galima naudoti" : formatEuros(mode.reserve)}</strong>
+      </div>
+      <button className="tray-check" type="button" onClick={onCheck}>Patikrinkime</button>
+    </section>
+  );
 }
 
 function CheckpointScreen({ remaining, onReveal }: { remaining: number; onReveal: () => void }) {
@@ -307,17 +397,22 @@ function CheckpointScreen({ remaining, onReveal }: { remaining: number; onReveal
   </div></main>;
 }
 
-function ResultScreen({ mode, plan, comparison, surpriseRevealed, onRetry, onHome }: {
-  mode: GameMode; plan: PlanSnapshot; comparison: PlanSnapshot | null; surpriseRevealed: boolean; onRetry: () => void; onHome: () => void;
+function ResultScreen({ mode, plan, comparison, surpriseRevealed, selection, onRetry, onHome }: {
+  mode: GameMode; plan: PlanSnapshot; comparison: PlanSnapshot | null; surpriseRevealed: boolean; selection: Selection; onRetry: () => void; onHome: () => void;
 }) {
+  const chosenItems = mode.items.filter((item) => (selection[item.id] ?? 0) > 0);
   return <main className="result-screen">
     <section className="result-summary">
       <p className="eyebrow">Misija įvykdyta!</p><h1>Šventė suplanuota</h1>
       <p className="lead">{surpriseRevealed ? "Prisitaikėte prie netikėtumo ir neviršijote biudžeto." : "Susitarimus įvykdėte ir neviršijote biudžeto."}</p>
+      <div className="result-mini-table" aria-label="Galutinis šventės stalas">
+        {chosenItems.map((item) => <div className={`mini-table-item mini-${item.category}`} key={item.id}>
+          <span>{item.name.slice(0, 1)}</span><strong>{item.name}</strong>{(selection[item.id] ?? 0) > 1 && <b>×{selection[item.id]}</b>}
+        </div>)}
+      </div>
       <div className="result-numbers">
         <div><span>Biudžetas</span><strong>{formatEuros(mode.budget)}</strong></div><div><span>Išleista</span><strong>{formatEuros(plan.spent)}</strong></div><div><span>Liko</span><strong>{formatEuros(plan.remaining)}</strong></div>
       </div>
-      <div className="final-plan"><h2>Jūsų planas</h2><p>{plan.itemNames.join(" · ")}</p></div>
     </section>
     <section className="debrief-panel">
       <p className="step-label">Paskutinis etapas</p><h2>Aptarkite sprendimą</h2>
@@ -337,8 +432,9 @@ function HelpDialog({ onClose }: { onClose: () => void }) {
       <p className="eyebrow">Trumpa atmintinė mokytojui</p><h2 id="help-title">Kaip žaisti su klase?</h2>
       <ol>
         <li><strong>Suskirstykite klasę komandomis.</strong><span>Kiekviena komanda aptaria vieną pasirinkimų grupę.</span></li>
-        <li><strong>Paprašykite paaiškinti.</strong><span>Prieš paspausdami kortelę išklausykite bent du pasiūlymus.</span></li>
-        <li><strong>Balsuokite ir tikrinkite.</strong><span>Klaidos nėra bauda – planą galima taisyti.</span></li>
+        <li><strong>Paprašykite paaiškinti.</strong><span>Prieš tempdami daiktą ant stalo išklausykite bent du pasiūlymus.</span></li>
+        <li><strong>Tempkite arba palieskite.</strong><span>Daiktą galima nutempti ant tinkamos stalo vietos arba tiesiog paliesti.</span></li>
+        <li><strong>Balsuokite ir tikrinkite.</strong><span>Tuščios vietos parodo, ko dar trūksta. Planą visada galima taisyti.</span></li>
         <li><strong>Užbaikite aptarimu.</strong><span>Svarbu ne išleisti mažiausiai, o pagrįsti savo pasirinkimą.</span></li>
       </ol>
       <div className="teacher-note"><strong>Sąvokos</strong><p>Biudžetas – kiek galime išleisti. Išlaidos – ką išleidome. Rezervas – pinigai netikėtumams.</p></div>
