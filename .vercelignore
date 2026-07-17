@@ -1,0 +1,5 @@
+.devenv/
+.direnv/
+.jj/
+dist/
+tmp/

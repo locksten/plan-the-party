@@ -1,8 +1,7 @@
-import type { CategoryId, ModeId } from "./game";
+import type { CategoryId, FoodLeftoverChoice, LongLastingFoodLeftoverChoice, PlanProblem } from "./domain/model";
 
-export type FoodLeftoverChoice = "suvalgyti" | "pasidalyti" | "ismesti";
-export type LongLastingFoodLeftoverChoice = FoodLeftoverChoice | "pasilikti-kitai-sventei";
-export type MoneyLeftoverChoice = "kitai-sventei" | "taupyti" | "klases-tikslui" | "paramai";
+export type StandardFoodLeftoverChoice = "suvalgyti" | "ismesti";
+export type { FoodLeftoverChoice, LongLastingFoodLeftoverChoice };
 
 export const CATEGORIES: ReadonlyArray<{ id: CategoryId; label: string }> = [
   { id: "papildomai", label: "Papuošimai" },
@@ -11,22 +10,8 @@ export const CATEGORIES: ReadonlyArray<{ id: CategoryId; label: string }> = [
   { id: "veikla", label: "Bendra veikla" },
 ];
 
-export const MODE_VISUALS: Record<ModeId, { number: string; callout: string; frameColor: string }> = {
-  paprasta: { number: "1", callout: "Rinkis", frameColor: "bg-yellow" },
-  iprasta: { number: "2", callout: "Skaičiuok", frameColor: "bg-blue" },
-  issukis: { number: "3", callout: "Reaguok", frameColor: "bg-coral" },
-};
-
-export const CATEGORY_ACCENT: Record<CategoryId, string> = {
-  gerimai: "bg-aqua",
-  uzkandziai: "bg-orange-soft",
-  veikla: "bg-purple-soft",
-  papildomai: "bg-blue-soft",
-};
-
-export const FOOD_LEFTOVER_CHOICES: ReadonlyArray<{ id: FoodLeftoverChoice; label: string }> = [
-  { id: "suvalgyti", label: "Suvalgyti dabar" },
-  { id: "pasidalyti", label: "Pasidalyti" },
+export const FOOD_LEFTOVER_CHOICES: ReadonlyArray<{ id: StandardFoodLeftoverChoice; label: string }> = [
+  { id: "suvalgyti", label: "Pabaigti viską" },
   { id: "ismesti", label: "Išmesti" },
 ];
 
@@ -35,14 +20,23 @@ export const LONG_LASTING_FOOD_LEFTOVER_CHOICES: ReadonlyArray<{ id: LongLasting
   { id: "pasilikti-kitai-sventei", label: "Pasilikti kitai šventei" },
 ];
 
-export const MONEY_LEFTOVER_CHOICES: ReadonlyArray<{ id: MoneyLeftoverChoice; label: string }> = [
-  { id: "kitai-sventei", label: "Pasilikti kitai šventei" },
-  { id: "taupyti", label: "Taupyti kitai veiklai" },
-  { id: "klases-tikslui", label: "Skirti bendram klasės tikslui" },
-  { id: "paramai", label: "Skirti paramai" },
-];
+export const COMPOST_FOOD_LEFTOVER_CHOICE = { id: "kompostuoti", label: "Kompostuoti" } as const;
 
 export const formatEuros = (value: number) => `${value} €`;
+
+export function formatPlanProblem(problem: PlanProblem): string {
+  switch (problem.kind) {
+    case "overBudget": return `Biudžetą viršijote ${problem.amount} €.`;
+    case "missingDrinks": return `Gėrimų trūksta ${problem.amount} žmonėms.`;
+    case "missingSnacks": return `Užkandžių trūksta ${problem.amount} žmonėms.`;
+    case "missingDrinkVariety": return `Pasirinkite bent ${problem.amount} skirtingus gėrimus.`;
+    case "missingSnackVariety": return `Pasirinkite bent ${problem.amount} skirtingus užkandžius.`;
+    case "missingActivities": return problem.amount === 1
+      ? "Pasirinkite bent vieną bendrą veiklą."
+      : `Pasirinkite bent ${problem.amount} skirtingas bendras veiklas.`;
+    case "missingDecorations": return `Pasirinkite bent ${problem.amount} papuošimus.`;
+  }
+}
 
 export function classes(...values: Array<string | false | null | undefined>): string {
   return values.filter(Boolean).join(" ");

@@ -1,42 +1,47 @@
 import { CHALLENGE_ART_SOURCES } from "../../cardArt";
-import { CHALLENGES, challengeCompleted, type GameMode, type GamePlan, type Selection } from "../../game";
+import { CHALLENGES, type ChallengeId } from "../../domain";
 import { classes } from "../../ui";
 
 type ChallengeStripProps = {
-  mode: GameMode;
-  plan: GamePlan;
-  selection: Selection;
+  completedChallengeIds: ReadonlySet<ChallengeId>;
   onOpen: () => void;
 };
 
-export function ChallengeStrip({ mode, plan, selection, onOpen }: ChallengeStripProps) {
+export function ChallengeStrip({ completedChallengeIds, onOpen }: ChallengeStripProps) {
+  const challengeStates = CHALLENGES.map((challenge) => ({
+    challenge,
+    isComplete: completedChallengeIds.has(challenge.id),
+  }));
+  const completedCount = challengeStates.filter(({ isComplete }) => isComplete).length;
+
   return (
-    <nav className="flex h-[46px] w-full items-center justify-between" aria-label="Iššūkiai">
-      {CHALLENGES.map((challenge) => {
-        const isComplete = challengeCompleted(challenge, mode, selection, plan);
+    <button
+      className="grid h-[2.875rem] w-full grid-cols-8 items-center rounded-lg outline-none focus-visible:outline-[0.25rem] focus-visible:outline-yellow active:translate-y-0.5"
+      type="button"
+      onClick={onOpen}
+      aria-label={`Atverti iššūkius. Įvykdyta ${completedCount} iš ${challengeStates.length}.`}
+    >
+      {challengeStates.map(({ challenge, isComplete }) => {
         const status = isComplete ? "įvykdytas" : "dar neįvykdytas";
 
         return (
-          <button
+          <span
             key={challenge.id}
-            className="group grid size-[46px] place-items-center focus-visible:rounded-lg focus-visible:outline-4 focus-visible:outline-yellow"
-            type="button"
-            onClick={onOpen}
-            aria-label={`${challenge.title}: ${status}. Atverti iššūkių lentą.`}
+            className="grid h-[2.875rem] min-w-0 place-items-center"
             title={`${challenge.title} — ${status}`}
           >
             <img
               className={classes(
-                "size-[46px] object-contain transition group-hover:scale-105",
+                "size-full max-h-[2.875rem] max-w-[2.875rem] object-contain",
                 !isComplete && "grayscale opacity-45",
               )}
               src={CHALLENGE_ART_SOURCES[challenge.id]}
               alt=""
               draggable={false}
             />
-          </button>
+          </span>
         );
       })}
-    </nav>
+    </button>
   );
 }

@@ -1,48 +1,64 @@
-import { MODES, type ModeId } from "../game";
-import { classes, formatEuros, MODE_VISUALS } from "../ui";
+import { useEffect, useState } from "react";
+import type { SavedMissionSummary } from "../missionStorage";
+import { DialogShell } from "./dialogs/DialogShell";
+import { FullscreenButton } from "./game/GameControls";
+import { LandingPage } from "./start/LandingPage";
+import { RaisedButton } from "./ui/RaisedButton";
 
-export function StartScreen({ onStart }: { onStart: (modeId: ModeId) => void }) {
+type StartScreenProps = {
+  missions: readonly SavedMissionSummary[];
+  onStart: () => void;
+  onContinue: (id: string) => void;
+  onDelete: (id: string) => void;
+  onFullscreen: () => void;
+};
+
+export function StartScreen({ missions, onStart, onContinue, onDelete, onFullscreen }: StartScreenProps) {
+  const [missionToDelete, setMissionToDelete] = useState<SavedMissionSummary | null>(null);
+
+  useEffect(() => {
+    if (missionToDelete === null) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMissionToDelete(null);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [missionToDelete]);
+
+  function confirmDelete() {
+    if (missionToDelete === null) throw new Error("Nepasirinktas įrašas, kurį reikėtų pašalinti.");
+    onDelete(missionToDelete.id);
+    setMissionToDelete(null);
+  }
+
   return (
-    <main className="grid min-h-[calc(100dvh-64px)] grid-rows-[auto_1fr_auto] overflow-hidden px-[clamp(20px,5vw,80px)] pb-[18px] pt-7">
-      <section className="mx-auto mb-[18px] max-w-[860px] text-center">
-        <p className="mb-2 text-[11px] font-black uppercase tracking-[.11em] text-teal-dark">Klasės iššūkis</p>
-        <h1 className="m-0 text-[clamp(44px,5vw,68px)] font-black leading-[.94] tracking-[-.055em] text-white [text-shadow:4px_4px_0_#17233f]">
-          Atverkite duris į<br /><span className="text-yellow">klasės šventę!</span>
-        </h1>
-        <p className="mx-auto mt-3 max-w-[760px] text-[clamp(16px,1.6vw,20px)] font-bold text-teal-dark">
-          Pasirinkite lygį. Tada tempkite daiktus ant šventės stalo ir saugokite biudžetą.
-        </p>
-      </section>
+    <main className="relative min-h-dvh overflow-hidden">
+      <nav className="layer-ui absolute right-3 top-3 flex gap-1.5" aria-label="Ekrano valdymas">
+        <FullscreenButton onFullscreen={onFullscreen} />
+      </nav>
+      <LandingPage
+        missions={missions}
+        onStart={onStart}
+        onContinue={onContinue}
+        onRequestDelete={setMissionToDelete}
+      />
 
-      <section className="grid w-full grid-cols-3 items-end gap-[clamp(18px,3vw,48px)]" aria-labelledby="mode-heading">
-        <h2 id="mode-heading" className="sr-only">Pasirinkite lygį</h2>
-        {MODES.map((mode) => {
-          const visual = MODE_VISUALS[mode.id];
-          return (
-            <article className={classes(
-              "relative min-h-[285px] rounded-[140px_140px_16px_16px] border-4 border-navy p-[13px] shadow-[9px_9px_0_#17233f]",
-              visual.frameColor,
-            )} key={mode.id}>
-              <div className="grid h-[55px] place-items-center" aria-hidden="true">
-                <span className="grid size-12 place-items-center rounded-full border-4 border-navy bg-cream text-2xl font-black shadow-[3px_3px_0_#17233f]">{visual.number}</span>
-              </div>
-              <div className="flex h-[205px] flex-col items-center rounded-[95px_95px_10px_10px] border-4 border-navy bg-cream px-[18px] pb-[13px] pt-4 text-center">
-                <p className="text-[11px] font-black uppercase tracking-[.08em] text-teal-dark">{mode.grades}</p>
-                <strong className="mt-1 text-2xl tracking-[-.03em]">{mode.title}</strong>
-                <small className="mt-1 text-xs font-bold text-muted">{visual.callout}</small>
-                <div className="mb-2 mt-auto flex w-full justify-center gap-2">
-                  <span className="rounded-lg border-2 border-navy bg-white px-2 py-1 text-xs font-black">{formatEuros(mode.budget)}</span>
-                  <span className="rounded-lg border-2 border-navy bg-white px-2 py-1 text-xs font-black">rezervą renkatės</span>
-                </div>
-                <button className="min-h-11 w-full rounded-lg border-[3px] border-navy bg-yellow font-black text-navy shadow-[0_4px_0_#17233f] hover:-translate-y-0.5 hover:shadow-[0_6px_0_#17233f]" type="button" onClick={() => onStart(mode.id)}>
-                  Atverti
-                </button>
-              </div>
-            </article>
-          );
-        })}
-      </section>
-      <p className="mb-0 mt-3.5 text-center text-xs font-black uppercase text-teal-dark">Mokytojas valdo ekraną · klasė tariasi ir balsuoja</p>
+      {missionToDelete !== null && (
+        <DialogShell labelledBy="delete-save-title" onClose={() => setMissionToDelete(null)} className="w-full max-w-[34rem]">
+          <h2 id="delete-save-title" className="m-0 pr-10 text-[2rem] leading-tight">
+            Pašalinti {missionToDelete.classLabel} klasės įrašą?
+          </h2>
+          <p className="mb-7 mt-3 text-lg font-bold text-muted">Visa šios klasės pažanga bus prarasta.</p>
+          <div className="flex justify-end gap-3">
+            <RaisedButton className="min-h-12 px-6 text-lg" type="button" onClick={() => setMissionToDelete(null)}>
+              Atšaukti
+            </RaisedButton>
+            <RaisedButton className="min-h-12 bg-coral px-6 text-lg" type="button" onClick={confirmDelete}>
+              Pašalinti
+            </RaisedButton>
+          </div>
+        </DialogShell>
+      )}
     </main>
   );
 }

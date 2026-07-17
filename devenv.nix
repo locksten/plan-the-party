@@ -1,6 +1,13 @@
 { lib, pkgs, ... }:
 
 {
+  packages = [
+    pkgs.imagemagick
+    pkgs.libwebp
+    # Pillow is required by Codex's imagegen skill chroma-key removal helper.
+    (pkgs.python3.withPackages (pythonPackages: [ pythonPackages.pillow ]))
+  ];
+
   languages.javascript = {
     enable = true;
     package = pkgs.nodejs_24;

@@ -1,27 +1,26 @@
-import { CHALLENGE_ART_SOURCES, EVENT_ART_SOURCES } from "./cardArt";
-import { ITEM_ART_SOURCES } from "./itemArt";
+import { ASSET_MANIFEST } from "./assetManifest";
 
-const itemSources = Object.values(ITEM_ART_SOURCES);
-const cardSources = [...Object.values(CHALLENGE_ART_SOURCES), ...Object.values(EVENT_ART_SOURCES)];
+const CACHE_WARM_BATCH_SIZE = 8;
+let cacheWarmPromise: Promise<void> | undefined;
 
-const retainedImages: HTMLImageElement[] = [];
-let preloadPromise: Promise<void> | undefined;
-
-function loadAndDecode(source: string): Promise<void> {
-  const image = new Image();
-  image.decoding = "async";
-  image.src = source;
-  retainedImages.push(image);
-
-  return image.decode().catch((cause: unknown) => {
-    throw new Error(`Nepavyko iš anksto įkelti paveikslėlio „${source}“.`, { cause });
+function loadAtLowPriority(source: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.fetchPriority = "low";
+    image.onload = () => resolve();
+    image.onerror = () => reject(new Error(`Nepavyko iš anksto įkelti paveikslėlio „${source}“.`));
+    image.src = source;
   });
 }
 
-export function preloadGameImages(): Promise<void> {
-  preloadPromise ??= Promise.all(itemSources.map(loadAndDecode))
-    .then(() => Promise.all(cardSources.map(loadAndDecode)))
-    .then(() => undefined);
+async function loadInBatches(sources: readonly string[]): Promise<void> {
+  for (let start = 0; start < sources.length; start += CACHE_WARM_BATCH_SIZE) {
+    const batch = sources.slice(start, start + CACHE_WARM_BATCH_SIZE);
+    await Promise.all(batch.map(loadAtLowPriority));
+  }
+}
 
-  return preloadPromise;
+export function warmGameImageCache(): Promise<void> {
+  cacheWarmPromise ??= loadInBatches(ASSET_MANIFEST.map((asset) => asset.source));
+  return cacheWarmPromise;
 }

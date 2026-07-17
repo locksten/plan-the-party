@@ -1,97 +1,172 @@
-import { useAutoAnimate } from "@formkit/auto-animate/react";
-import { assert, type CategoryId, type GameItem, type GamePlan, type Selection } from "../../game";
+import { assert } from "../../assert";
+import { LONG_LASTING_FOOD_SOURCE } from "../../completionArt";
+import { SHOPPING_CARD_DISCOUNT, type CategoryId, type GamePlan, type ItemId, type ResolvedPlacement } from "../../domain";
+import { META_ART_SOURCES } from "../../metaArt";
 import { classes } from "../../ui";
-import type { BeginDrag, DragPointerHandler } from "./drag";
-import { ItemImage } from "./ItemImage";
-
-type PlacedItem = {
-  placementId: string;
-  item: GameItem;
-  selectionIndex: number;
-};
+import { useAutoAnimateRef } from "../../useAutoAnimateRef";
+import { ItemImage, ItemQuantity } from "./ItemImage";
 
 type PartyTableProps = {
-  items: readonly GameItem[];
-  selection: Selection;
+  placements: readonly ResolvedPlacement[];
+  selectedItemIds: ReadonlySet<ItemId>;
   plan: GamePlan;
+  shoppingCardOwned: boolean;
+  shoppingCardSelected: boolean;
   showProblems: boolean;
+  onShoppingCardSelectedChange: (selected: boolean) => void;
   onRemoveAt: (selectionIndex: number) => void;
-  onBeginDrag: BeginDrag;
-  onMoveDrag: DragPointerHandler;
-  onFinishDrag: DragPointerHandler;
-  onCancelDrag: DragPointerHandler;
 };
 
-export function PartyTable({ items, selection, plan, showProblems, onRemoveAt, onBeginDrag, onMoveDrag, onFinishDrag, onCancelDrag }: PartyTableProps) {
-  const itemsById = new Map(items.map((item) => [item.id, item]));
-  const selectedByCategory = (category: CategoryId): PlacedItem[] => selection.flatMap((entry, selectionIndex) => {
-    const item = itemsById.get(entry.itemId);
-    assert(item !== undefined, `Pasirinkta nežinoma prekė „${entry.itemId}“.`);
-    return item.category === category ? [{ placementId: entry.placementId, item, selectionIndex }] : [];
-  });
-  const dragHandlers = { onBeginDrag, onMoveDrag, onFinishDrag, onCancelDrag };
+export function PartyTable({ placements, selectedItemIds, plan, shoppingCardOwned, shoppingCardSelected, showProblems, onShoppingCardSelectedChange, onRemoveAt }: PartyTableProps) {
+  const selectedByCategory = (category: CategoryId) => placements.filter((placement) => placement.item.category === category);
+  const needsDecoration = showProblems && plan.decorationChoices < plan.requiredDecorationChoices;
+  const needsDrinks = showProblems && plan.drinkPortions < plan.participants.total;
+  const needsSnacks = showProblems && plan.snackPortions < plan.participants.total;
+  const needsActivity = showProblems && plan.activityChoices < plan.requiredActivityChoices;
 
   return (
-    <section className="min-h-0 min-w-0" aria-label="Klasės šventės stalas">
-      <div className="grid h-full w-full grid-rows-[minmax(58px,.75fr)_minmax(108px,2fr)_minmax(54px,.7fr)] gap-2 overflow-hidden rounded-[48%/18%] border-[5px] border-navy bg-table px-[clamp(24px,3vw,54px)] py-3 shadow-[inset_0_0_0_7px_#a7503d,0_8px_0_rgba(23,35,63,.25)]">
-        <TableZone category="papildomai" title="Papuošimai" items={selectedByCategory("papildomai")} onRemoveAt={onRemoveAt} {...dragHandlers} />
-        <div className="grid min-h-0 grid-cols-2">
+    <section className="h-full min-h-0 min-w-0" aria-label="Klasės šventės stalas">
+      <div className="relative isolate h-full w-full overflow-visible rounded-[48%/18%] border-[0.3125rem] border-navy bg-table shadow-[inset_0_0_0_0.4375rem_#a7503d,0_0.5rem_0_rgba(23,35,63,0.25)]">
+        <DecorationEffects selectedItemIds={selectedItemIds} />
+
+        {shoppingCardOwned && (
+          <button
+            className={classes(
+              "absolute bottom-[clamp(2.25rem,3vw,3.25rem)] left-[clamp(3rem,4vw,4.5rem)] z-[15] h-[clamp(3.05rem,4.49vw,4.17rem)] aspect-[1.559] select-none rounded-[12%] outline-none transition duration-300 ease-out focus-visible:ring-[0.25rem] focus-visible:ring-blue focus-visible:ring-offset-1",
+              shoppingCardSelected
+                ? "-translate-x-1/2 -translate-y-full -rotate-[30deg] ring-[0.25rem] ring-blue ring-offset-1"
+                : "-rotate-6 active:translate-y-0.5",
+            )}
+            type="button"
+            aria-pressed={shoppingCardSelected}
+            aria-label={`Pirkėjo kortelė. Pasirinkite kortelę, tada prekę, kad jos kainą sumažintumėte iki ${SHOPPING_CARD_DISCOUNT} eurų.`}
+            onClick={() => onShoppingCardSelectedChange(!shoppingCardSelected)}
+          >
+            <img className="size-full object-contain" src={META_ART_SOURCES["shopping-card"]} alt="" draggable={false} />
+          </button>
+        )}
+
+        <TableAttentionOverlay
+          needsDecoration={needsDecoration}
+          needsDrinks={needsDrinks}
+          needsSnacks={needsSnacks}
+          needsActivity={needsActivity}
+        />
+
+        <div className={TABLE_GRID_CLASS_NAME}>
           <TableZone
-            category="gerimai"
-            title="Gėrimai"
-            items={selectedByCategory("gerimai")}
-            people={plan.participants}
-            covered={plan.drinkPortions}
-            attention={showProblems && (plan.participants === undefined ? !plan.hasDrink : plan.drinkPortions < plan.participants)}
+            category="papildomai"
+            title="Papuošimai"
+            items={selectedByCategory("papildomai")}
+            selectedChoices={plan.decorationChoices}
+            requiredChoices={plan.requiredDecorationChoices}
             onRemoveAt={onRemoveAt}
-            {...dragHandlers}
           />
+          <div className="grid min-h-0 grid-cols-2">
+            <TableZone
+              category="gerimai"
+              title="Gėrimai"
+              items={selectedByCategory("gerimai")}
+              people={plan.participants.total}
+              covered={plan.drinkPortions}
+              onRemoveAt={onRemoveAt}
+            />
+            <TableZone
+              category="uzkandziai"
+              title="Užkandžiai"
+              items={selectedByCategory("uzkandziai")}
+              people={plan.participants.total}
+              covered={plan.snackPortions}
+              carried={plan.carriedSnackPortions}
+              eventSupplied={plan.eventSuppliedSnackPortions}
+              onRemoveAt={onRemoveAt}
+            />
+          </div>
           <TableZone
-            category="uzkandziai"
-            title="Užkandžiai"
-            items={selectedByCategory("uzkandziai")}
-            people={plan.participants}
-            covered={plan.snackPortions}
-            carried={plan.carriedSnackPortions}
-            attention={showProblems && (plan.participants === undefined ? !plan.hasSnack : plan.snackPortions < plan.participants)}
+            category="veikla"
+            title="Bendra veikla"
+            items={selectedByCategory("veikla")}
+            selectedChoices={plan.activityChoices}
+            requiredChoices={plan.requiredActivityChoices}
             onRemoveAt={onRemoveAt}
-            {...dragHandlers}
           />
         </div>
-        <TableZone category="veikla" title="Bendra veikla" items={selectedByCategory("veikla")} attention={showProblems && !plan.hasActivity} onRemoveAt={onRemoveAt} {...dragHandlers} />
       </div>
     </section>
+  );
+}
+
+const TABLE_GRID_CLASS_NAME = "grid h-full w-full grid-rows-[minmax(3.625rem,0.75fr)_minmax(6.75rem,2fr)_minmax(3.375rem,0.7fr)] gap-2 px-[clamp(1.5rem,3vw,3.375rem)] py-3";
+
+function TableAttentionOverlay({ needsDecoration, needsDrinks, needsSnacks, needsActivity }: {
+  needsDecoration: boolean;
+  needsDrinks: boolean;
+  needsSnacks: boolean;
+  needsActivity: boolean;
+}) {
+  return (
+    <div className="table-surface-clip pointer-events-none absolute inset-0 z-[5] overflow-hidden" aria-hidden="true">
+      <div className={TABLE_GRID_CLASS_NAME}>
+        <AttentionHighlight attention={needsDecoration} className="-mb-2 -mt-3" />
+        <div className="grid min-h-0 grid-cols-2">
+          <AttentionHighlight attention={needsDrinks} className="-my-2" />
+          <AttentionHighlight attention={needsSnacks} className="-my-2" />
+        </div>
+        <AttentionHighlight attention={needsActivity} className="-mb-3 -mt-2" />
+      </div>
+    </div>
+  );
+}
+
+function AttentionHighlight({ attention, className }: { attention: boolean; className?: string }) {
+  return <div className={classes(className, attention && "animate-zone-pulse bg-coral/60")} />;
+}
+
+function DecorationEffects({ selectedItemIds }: { selectedItemIds: ReadonlySet<ItemId> }) {
+  return (
+    <div className="table-surface-clip pointer-events-none absolute inset-0 z-0 overflow-hidden" aria-hidden="true">
+      {selectedItemIds.has("staltiese") && (
+        <div className="tablecloth-effect absolute inset-0" />
+      )}
+
+      {selectedItemIds.has("sviesu-projektorius") && (
+        <div className="projector-light-effect absolute inset-0" />
+      )}
+    </div>
   );
 }
 
 type TableZoneProps = {
   category: CategoryId;
   title: string;
-  items: readonly PlacedItem[];
+  items: readonly ResolvedPlacement[];
   people?: number;
   covered?: number;
   carried?: number;
-  attention?: boolean;
+  eventSupplied?: number;
+  selectedChoices?: number;
+  requiredChoices?: number;
   onRemoveAt: (selectionIndex: number) => void;
-  onBeginDrag: BeginDrag;
-  onMoveDrag: DragPointerHandler;
-  onFinishDrag: DragPointerHandler;
-  onCancelDrag: DragPointerHandler;
 };
 
-function TableZone({ category, title, items, people, covered = 0, carried = 0, attention = false, onRemoveAt, onBeginDrag, onMoveDrag, onFinishDrag, onCancelDrag }: TableZoneProps) {
-  const [itemsRef] = useAutoAnimate<HTMLDivElement>({ duration: 220, easing: "ease-out" });
+const zoneItemAlignment: Readonly<Record<CategoryId, string>> = {
+  gerimai: "translate-y-4",
+  uzkandziai: "translate-y-4",
+  papildomai: "translate-y-2",
+  veikla: "translate-y-3.5",
+};
+
+function TableZone({ category, title, items, people, covered = 0, carried = 0, eventSupplied = 0, selectedChoices, requiredChoices, onRemoveAt }: TableZoneProps) {
+  const itemsRef = useAutoAnimateRef<HTMLDivElement>({ duration: 220, easing: "ease-out" });
 
   return (
     <section
       className={classes(
-        "relative isolate flex min-h-0 min-w-0 flex-col overflow-hidden px-3.5 py-2.5 transition before:pointer-events-none before:absolute before:inset-x-2.5 before:top-3 before:-z-10 before:text-center before:text-[clamp(25px,3vw,46px)] before:font-black before:uppercase before:leading-[.9] before:tracking-[-.045em] before:text-cream/40 before:content-[attr(data-zone-title)]",
-        category === "papildomai" && "border-b-[3px] border-navy/50",
-        category === "gerimai" && "border-r-[3px] border-navy/50",
-        category === "veikla" && "border-t-[3px] border-navy/50",
-        attention && "animate-zone-pulse bg-coral/60",
+        "relative z-10 isolate flex min-h-0 min-w-0 flex-col gap-2 overflow-visible px-3.5 py-2.5 before:pointer-events-none before:absolute before:inset-x-2.5 before:top-3 before:-z-10 before:text-center before:text-[clamp(1.5625rem,3vw,2.875rem)] before:font-black before:uppercase before:leading-[0.9] before:tracking-[-0.045em] before:text-cream before:opacity-40 before:content-[attr(data-zone-title)]",
+        category === "papildomai" && "border-b-[0.1875rem] border-navy/50",
+        category === "gerimai" && "border-r-[0.1875rem] border-navy/50",
+        category === "veikla" && "border-t-[0.1875rem] border-navy/50",
       )}
-      data-drop-category={category}
       data-zone-title={title}
       aria-label={title}
     >
@@ -99,62 +174,200 @@ function TableZone({ category, title, items, people, covered = 0, carried = 0, a
         ref={itemsRef}
         className={classes(
           "flex min-h-8 flex-1 flex-wrap content-center items-center justify-center gap-1",
-          (category === "gerimai" || category === "uzkandziai") && "relative top-4",
-          category === "papildomai" && "relative top-[7px]",
-          category === "veikla" && "relative top-[13px]",
+          zoneItemAlignment[category],
         )}
       >
         {items.map(({ placementId, item, selectionIndex }) => (
-          <div
+          <button
             key={placementId}
-            className="relative h-[clamp(75px,9vw,146px)] max-h-full shrink-0 aspect-square cursor-grab touch-none select-none"
-            role="button"
-            tabIndex={0}
+            className="relative h-[clamp(4.6875rem,9vw,9.125rem)] max-h-full aspect-square shrink-0 select-none"
+            type="button"
             aria-label={`${item.name}${item.portions === undefined ? "" : `, ${item.portions} porcijos`}. Palieskite, kad nuimtumėte vieną.`}
-            onPointerDown={(event) => onBeginDrag(event, item, "table", selectionIndex)}
-            onPointerMove={onMoveDrag}
-            onPointerUp={onFinishDrag}
-            onPointerCancel={onCancelDrag}
-            onKeyDown={(event) => {
-              if (event.key !== "Enter" && event.key !== " ") return;
-              event.preventDefault();
-              onRemoveAt(selectionIndex);
-            }}
+            onClick={() => onRemoveAt(selectionIndex)}
           >
-            <ItemImage item={item} className="size-full motion-safe:animate-table-item-enter" />
-          </div>
+            <ItemImage item={item} className="size-full" />
+          </button>
         ))}
       </div>
-      {(category === "gerimai" || category === "uzkandziai") && <SeatDots people={people} covered={covered} carried={carried} hasChoice={items.length > 0} />}
+      {category === "uzkandziai" && carried > 0 && <CarriedSnackItem portions={carried} />}
+      {(category === "gerimai" || category === "uzkandziai") && (
+        <SeatDots
+          items={items}
+          people={people}
+          covered={covered}
+          carried={carried}
+          eventSupplied={eventSupplied}
+        />
+      )}
+      {(category === "papildomai" || category === "veikla") && (
+        <ChoiceDots selected={selectedChoices} required={requiredChoices} />
+      )}
     </section>
   );
 }
 
-function SeatDots({ people, covered, carried, hasChoice }: { people?: number; covered: number; carried: number; hasChoice: boolean }) {
-  if (people === undefined) {
-    return hasChoice ? null : <div className="relative z-10 mt-2 rounded-xl bg-cream/20 px-2.5 py-2 text-center text-sm font-black text-red-dark">Dar nepasirinkta</div>;
-  }
+function CarriedSnackItem({ portions }: { portions: number }) {
+  assert(Number.isInteger(portions) && portions > 0, "Perkeltų užkandžių porcijų skaičius turi būti teigiamas sveikasis skaičius.");
+  const className = "absolute bottom-[2.75rem] left-1.5 z-20 size-[clamp(4.25rem,6vw,5.75rem)]";
+  return (
+    <div className={`${className} pointer-events-none`} role="img" aria-label={`${portions} porcijos iš ankstesnės šventės`}>
+      <img
+        className="size-full object-contain"
+        src={LONG_LASTING_FOOD_SOURCE}
+        alt=""
+        draggable={false}
+      />
+      <ItemQuantity quantity={portions} size="small" />
+    </div>
+  );
+}
 
+function SeatDots({ items, people, covered, carried, eventSupplied }: {
+  items: readonly ResolvedPlacement[];
+  people: number | undefined;
+  covered: number;
+  carried: number;
+  eventSupplied: number;
+}) {
+  assert(people !== undefined, "Gėrimų ir užkandžių zonoms reikia mokinių skaičiaus.");
   const filled = Math.min(people, covered);
   const carriedFilled = Math.min(filled, carried);
+  const eventFilled = Math.min(filled - carriedFilled, eventSupplied);
   const excess = Math.max(0, covered - people);
   const label = excess === 0 ? `${filled} porcijos iš ${people}` : `${people} porcijos ir ${excess} papildomos`;
   const carriedLabel = carriedFilled > 0 ? `, ${carriedFilled} iš ankstesnės šventės` : "";
+  const eventLabel = eventFilled > 0 ? `, ${eventFilled} atnešė iš namų` : "";
+  const dotCount = people + excess;
+  const empty = Math.max(0, people - covered);
+  const groupSizes = portionDotGroupSizes(items, covered, carried, eventSupplied, empty);
   return (
-    <div className="relative z-10 mt-2 w-fit max-w-full self-center rounded-xl bg-cream/20 px-2.5 py-2">
-      <div className="flex flex-wrap items-center gap-[3px]" aria-label={`${label}${carriedLabel}`}>
-        {Array.from({ length: people }, (_, index) => (
-          <i
-            className={classes(
-              "size-[14px] rounded-full border-2 border-navy",
-              index < carriedFilled ? "bg-yellow" : index < filled ? "bg-teal" : "bg-cream",
-            )}
-            key={index}
-            aria-hidden="true"
-          />
-        ))}
-        {excess > 0 && <strong className="ml-1 text-xs font-black leading-none">+{excess}</strong>}
-      </div>
+    <QuantityDots
+      count={dotCount}
+      groupSizes={groupSizes}
+      ungroupedFromIndex={empty > 0 ? filled : undefined}
+      label={`${label}${carriedLabel}${eventLabel}`}
+      classNameForIndex={(index) => classes(
+        index < people && "border-[0.125rem] border-navy",
+        index >= people
+          ? "after:size-2 after:rounded-full after:bg-teal-medium after:content-['']"
+          : index < carriedFilled
+            ? "bg-yellow"
+            : index < carriedFilled + eventFilled
+              ? "bg-purple-soft"
+              : index < filled ? "bg-teal" : "bg-cream",
+      )}
+    />
+  );
+}
+
+function portionDotGroupSizes(
+  items: readonly ResolvedPlacement[],
+  covered: number,
+  carried: number,
+  eventSupplied: number,
+  empty: number,
+): readonly number[] {
+  assert(Number.isInteger(covered) && covered >= 0, "Padengtų porcijų skaičius turi būti neneigiamas sveikasis skaičius.");
+  assert(Number.isInteger(carried) && carried >= 0, "Anksčiau likusių porcijų skaičius turi būti neneigiamas sveikasis skaičius.");
+  assert(Number.isInteger(eventSupplied) && eventSupplied >= 0, "Įvykio porcijų skaičius turi būti neneigiamas sveikasis skaičius.");
+  assert(Number.isInteger(empty) && empty >= 0, "Trūkstamų porcijų skaičius turi būti neneigiamas sveikasis skaičius.");
+
+  const groups: number[] = [];
+  let remaining = covered;
+  const carriedGroup = Math.min(remaining, carried);
+  if (carriedGroup > 0) groups.push(...groupsOfAtMostFive(carriedGroup));
+  remaining -= carriedGroup;
+
+  const eventGroup = Math.min(remaining, eventSupplied);
+  if (eventGroup > 0) groups.push(eventGroup);
+  remaining -= eventGroup;
+
+  for (const { item } of items) {
+    assert(item.portions !== undefined && Number.isInteger(item.portions) && item.portions > 0, "Gėrimas arba užkandis turi turėti teigiamą porcijų skaičių.");
+    const itemGroup = Math.min(remaining, item.portions);
+    if (itemGroup > 0) groups.push(itemGroup);
+    remaining -= itemGroup;
+  }
+  assert(remaining === 0, "Porcijų grupės turi apimti visas turimas porcijas.");
+
+  groups.push(...Array.from({ length: empty }, () => 1));
+  return groups;
+}
+
+function groupsOfAtMostFive(count: number): readonly number[] {
+  return Array.from({ length: Math.ceil(count / 5) }, (_, groupIndex) => Math.min(5, count - groupIndex * 5));
+}
+
+function ChoiceDots({ selected, required }: { selected: number | undefined; required: number | undefined }) {
+  assert(selected !== undefined && required !== undefined, "Veiklų ir papuošimų zonoms reikia pasirinkimų skaičiaus.");
+  assert(Number.isInteger(selected) && selected >= 0, "Pasirinkimų skaičius turi būti neneigiamas sveikasis skaičius.");
+  assert(Number.isInteger(required) && required >= 0, "Privalomų pasirinkimų skaičius turi būti neneigiamas sveikasis skaičius.");
+  const dotCount = Math.max(selected, required);
+  if (dotCount === 0) return null;
+
+  const label = required === 0
+    ? `Pasirinkta: ${selected}`
+    : `Pasirinkta ${selected}, reikia bent ${required}`;
+
+  return (
+    <QuantityDots
+      count={dotCount}
+      label={label}
+      classNameForIndex={(index) => classes(
+        index < required && "border-[0.125rem] border-navy",
+        index >= required
+          ? "after:size-2 after:rounded-full after:bg-teal-medium after:content-['']"
+          : index < selected ? "bg-teal" : "bg-cream",
+      )}
+    />
+  );
+}
+
+function QuantityDots({ count, groupSizes, ungroupedFromIndex, label, classNameForIndex }: {
+  count: number;
+  groupSizes?: readonly number[];
+  ungroupedFromIndex?: number;
+  label: string;
+  classNameForIndex: (index: number) => string;
+}) {
+  assert(Number.isInteger(count) && count > 0, "Taškų skaičius turi būti teigiamas sveikasis skaičius.");
+  const resolvedGroupSizes = groupSizes ?? groupsOfAtMostFive(count);
+  assert(resolvedGroupSizes.every((size) => Number.isInteger(size) && size > 0), "Kiekvienoje taškų grupėje turi būti bent vienas taškas.");
+  assert(resolvedGroupSizes.reduce((total, size) => total + size, 0) === count, "Taškų grupės turi apimti visus taškus.");
+  let nextIndex = 0;
+  const groups = resolvedGroupSizes.map((size) => {
+    const group = Array.from({ length: size }, () => nextIndex++);
+    return group;
+  });
+  if (ungroupedFromIndex !== undefined) {
+    assert(Number.isInteger(ungroupedFromIndex) && ungroupedFromIndex >= 0 && ungroupedFromIndex < count, "Atskirų taškų pradžios indeksas turi patekti į taškų intervalą.");
+    assert(groups.every((group) => group.every((index) => index < ungroupedFromIndex) || group.every((index) => index >= ungroupedFromIndex)), "Atskirų taškų riba negali kirsti taškų grupės.");
+  }
+  return (
+    <div
+      className="relative z-10 flex w-fit max-w-full flex-wrap items-center justify-start gap-x-0.5 gap-y-1 self-center"
+      aria-label={label}
+    >
+      {groups.map((group, groupIndex) => (
+        <span
+          className={classes(
+            "flex max-w-full flex-wrap items-center gap-0.5",
+            groupIndex < groups.length - 1 && (ungroupedFromIndex === undefined || group[0] < ungroupedFromIndex) && "mr-2.5",
+          )}
+          key={group[0]}
+          aria-hidden="true"
+        >
+          {group.map((index) => (
+            <span
+              className={classes(
+                "flex size-4 items-center justify-center rounded-full",
+                classNameForIndex(index),
+              )}
+              key={index}
+            />
+          ))}
+        </span>
+      ))}
     </div>
   );
 }

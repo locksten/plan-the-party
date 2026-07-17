@@ -1,15 +1,17 @@
 {
-  "name": "edu-games",
+  "name": "plan-the-party",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "assets:encode": "bash scripts/encode-game-art.sh",
     "dev": "vite --host 127.0.0.1",
     "build": "tsc --noEmit && vite build",
-    "preview": "vite preview --host 127.0.0.1"
+    "preview": "vite preview --host 127.0.0.1",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
-    "@fontsource-variable/nunito": "^5.2.7",
     "@formkit/auto-animate": "^0.10.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
@@ -21,6 +23,7 @@
     "@vitejs/plugin-react": "^6.0.3",
     "tailwindcss": "^4.3.2",
     "typescript": "^7.0.2",
-    "vite": "^8.1.4"
+    "vite": "^8.1.4",
+    "vitest": "^4.1.10"
   }
 }

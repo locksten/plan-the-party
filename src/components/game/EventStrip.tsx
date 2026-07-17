@@ -1,37 +1,40 @@
 import { EVENT_ART_SOURCES } from "../../cardArt";
-import type { GameMode, MysteryEvent, MysteryEventId } from "../../game";
+import { EVENTS, type EventId } from "../../domain";
 import { classes } from "../../ui";
 
 type EventStripProps = {
-  mode: GameMode;
-  activeEvents: readonly MysteryEvent[];
-  revealedEventIds: readonly MysteryEventId[];
+  activeEventIds: readonly EventId[];
+  revealedEventIds: readonly EventId[];
+  attention: boolean;
   onOpen: () => void;
 };
 
-export function EventStrip({ mode, activeEvents, revealedEventIds, onOpen }: EventStripProps) {
+export function EventStrip({ activeEventIds, revealedEventIds, attention, onOpen }: EventStripProps) {
   return (
-    <nav className="flex h-10 w-full items-center justify-between" aria-label="Netikėti įvykiai">
-      {mode.mysteryEvents.map((event) => {
+    <button
+      className="grid h-10 w-full grid-cols-8 items-center rounded-lg outline-none focus-visible:outline-[0.25rem] focus-visible:outline-yellow active:translate-y-0.5"
+      type="button"
+      onClick={onOpen}
+      aria-label={`Atverti netikėtus įvykius. Atverta ${revealedEventIds.length} iš ${EVENTS.length}, įjungta ${activeEventIds.length}.`}
+    >
+      {EVENTS.map((event, index) => {
         const isRevealed = revealedEventIds.includes(event.id);
-        const isActive = activeEvents.some((activeEvent) => activeEvent.id === event.id);
+        const isActive = activeEventIds.includes(event.id);
         const status = isActive ? "įjungtas" : "išjungtas";
 
         return (
-          <button
+          <span
             key={event.id}
-            className="group grid size-10 place-items-center focus-visible:rounded-lg focus-visible:outline-4 focus-visible:outline-yellow"
-            type="button"
-            onClick={onOpen}
-            aria-label={isRevealed
-              ? `${event.title}: ${status}. Atverti netikėtų įvykių korteles.`
-              : "Neatversta netikėto įvykio kortelė. Atverti netikėtų įvykių korteles."}
+            className={classes(
+              "grid h-10 min-w-0 place-items-center",
+              attention && index === 0 && "event-icon-bounce",
+            )}
             title={isRevealed ? `${event.title} — ${status}` : "Neatverstas įvykis"}
           >
             {isRevealed ? (
               <img
                 className={classes(
-                  "size-10 object-contain transition group-hover:scale-105",
+                  "size-full max-h-10 max-w-10 object-contain",
                   !isActive && "grayscale opacity-45",
                 )}
                 src={EVENT_ART_SOURCES[event.id]}
@@ -39,9 +42,9 @@ export function EventStrip({ mode, activeEvents, revealedEventIds, onOpen }: Eve
                 draggable={false}
               />
             ) : (
-              <span className="relative grid size-10 place-items-center transition group-hover:scale-105" aria-hidden="true">
+              <span className="relative isolate grid size-full max-h-10 max-w-10 place-items-center" aria-hidden="true">
                 <img
-                  className="absolute size-full object-contain brightness-0 opacity-65"
+                  className="absolute size-full -scale-x-100 object-contain brightness-0 opacity-65"
                   src={EVENT_ART_SOURCES[event.id]}
                   alt=""
                   draggable={false}
@@ -49,9 +52,9 @@ export function EventStrip({ mode, activeEvents, revealedEventIds, onOpen }: Eve
                 <span className="relative z-10 text-base font-black leading-none text-cream/70">?</span>
               </span>
             )}
-          </button>
+          </span>
         );
       })}
-    </nav>
+    </button>
   );
 }
