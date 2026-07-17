@@ -14,13 +14,15 @@
   --color-table: #cf7656;
   --color-aqua: #8cdad1;
   --color-orange-soft: #ffb481;
+  --color-orange-dark: #71300f;
   --color-purple-soft: #b7a7ff;
   --color-blue-soft: #9fc9ff;
   --color-mint-soft: #d8f5ef;
   --color-red-dark: #8d241f;
-  --font-display: "Arial Rounded MT Bold", "Trebuchet MS", system-ui, sans-serif;
+  --font-sans: "Nunito Variable", system-ui, sans-serif;
   --animate-zone-pulse: zone-pulse 600ms ease 2;
   --animate-tray-shake: tray-shake 320ms ease 2;
+  --animate-table-item-enter: table-item-enter 240ms ease-out backwards;
 }
 
 @layer base {
@@ -43,7 +45,14 @@
       radial-gradient(circle at 80% 70%, rgb(23 35 63 / 8%) 0 1.5px, transparent 2px);
     background-size: 36px 36px, 24px 24px;
     color: var(--color-navy);
-    font-family: var(--font-display);
+    font-family: var(--font-sans);
+  }
+
+  h1,
+  h2,
+  h3,
+  strong {
+    font-weight: 900;
   }
 
   button {
@@ -59,4 +68,34 @@
 @keyframes tray-shake {
   33% { transform: translateX(-4px); }
   66% { transform: translateX(4px); }
+}
+
+@keyframes table-item-enter {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(.9);
+  }
+}
+
+.event-card-inner {
+  transform-style: preserve-3d;
+  transition: transform 500ms cubic-bezier(.2, .8, .2, 1);
+}
+
+.event-card-inner--revealed {
+  transform: rotateY(180deg);
+}
+
+.event-card-face {
+  backface-visibility: hidden;
+}
+
+.event-card-front {
+  transform: rotateY(180deg);
+}
+
+.event-card-back {
+  background-color: #eaa9a4;
+  background-image: radial-gradient(circle, rgb(23 35 63 / 9%) 1.5px, transparent 1.75px);
+  background-size: 14px 14px;
 }

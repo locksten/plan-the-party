@@ -7,11 +7,20 @@ import {
   challengeDescription,
   type GameMode,
   type GamePlan,
-  type ChallengeCard,
   type MysteryEvent,
+  type MysteryEventId,
   type Selection,
 } from "../game";
-import { classes, formatEuros, LEFTOVER_CHOICES, type LeftoverChoice } from "../ui";
+import {
+  classes,
+  FOOD_LEFTOVER_CHOICES,
+  formatEuros,
+  LONG_LASTING_FOOD_LEFTOVER_CHOICES,
+  MONEY_LEFTOVER_CHOICES,
+  type FoodLeftoverChoice,
+  type LongLastingFoodLeftoverChoice,
+  type MoneyLeftoverChoice,
+} from "../ui";
 
 const primaryButton = "min-h-[50px] rounded-lg border-[3px] border-navy bg-yellow px-[18px] font-black text-navy shadow-[0_4px_0_#17233f]";
 const eyebrow = "mb-2 text-[11px] font-black uppercase tracking-[.11em] text-teal-dark";
@@ -22,9 +31,10 @@ type DialogShellProps = {
   children: ReactNode;
   className: string;
   lightBackdrop?: boolean;
+  closeButton?: "text" | "icon" | "none";
 };
 
-function DialogShell({ labelledBy, onClose, children, className, lightBackdrop = false }: DialogShellProps) {
+function DialogShell({ labelledBy, onClose, children, className, lightBackdrop = false, closeButton = "text" }: DialogShellProps) {
   return (
     <div className={classes("fixed inset-0 z-80 grid place-items-center bg-[#0b1429]/80 p-5", lightBackdrop && "bg-[#0b1429]/70")} role="presentation" onMouseDown={onClose}>
       <section
@@ -34,9 +44,23 @@ function DialogShell({ labelledBy, onClose, children, className, lightBackdrop =
         aria-labelledby={labelledBy}
         onMouseDown={(event) => event.stopPropagation()}
       >
-        <button className="absolute right-3 top-3 min-h-10 rounded-lg border-2 border-navy bg-white px-2.5 font-black text-navy" type="button" onClick={onClose} aria-label="Uždaryti">
-          Uždaryti
-        </button>
+        {closeButton !== "none" && (
+          <button
+            className={classes(
+              "absolute right-3 top-3 border-2 border-navy bg-white font-black text-navy hover:bg-yellow",
+              closeButton === "icon" ? "grid size-11 place-items-center rounded-lg" : "min-h-10 rounded-lg px-2.5",
+            )}
+            type="button"
+            onClick={onClose}
+            aria-label="Uždaryti"
+          >
+            {closeButton === "icon" ? (
+              <svg className="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" aria-hidden="true">
+                <path d="M6 6l12 12M18 6 6 18" />
+              </svg>
+            ) : "Uždaryti"}
+          </button>
+        )}
         {children}
       </section>
     </div>
@@ -49,9 +73,9 @@ export function HelpDialog({ onClose }: { onClose: () => void }) {
     ["Paprašykite paaiškinti.", "Prieš tempdami daiktą ant stalo išklausykite bent du pasiūlymus."],
     ["Tempkite arba palieskite.", "Daiktą galima nutempti ant tinkamos stalo vietos arba tiesiog paliesti."],
     ["Pasirinkite rezervą.", "Didinkite arba mažinkite jį planuodami ir stebėkite, kiek dar galima išleisti."],
-    ["Pridėkite iššūkių.", "Pasirinkite vieną ar kelis neprivalomus tikslus, kuriuos klasė mėgins įvykdyti."],
-    ["Pridėkite netikėtų įvykių.", "Mokytojas gali įjungti kelias korteles, o klasė pritaiko planą."],
-    ["Baikite, bet tęskite laisvai.", "Tinkamo plano langą galima uždaryti ir toliau keisti pasirinkimus."],
+    ["Stebėkite iššūkius.", "Jie įvykdomi automatiškai, kai klasės planas atitinka kortelėje nurodytą tikslą."],
+    ["Atverskite netikėtų įvykių.", "Atversta kortelė iškart įsigalioja. Palieskite ją dar kartą, jei norite išjungti."],
+    ["Baikite arba tęskite.", "Aptarkite likučius, grįžkite keisti planą arba pradėkite naują šventę."],
   ] as const;
 
   return (
@@ -64,14 +88,14 @@ export function HelpDialog({ onClose }: { onClose: () => void }) {
             <span className="grid size-7 place-items-center rounded-full border-2 border-navy bg-yellow font-black">{index + 1}</span>
             <span>
               <strong className="block">{title}</strong>
-              <span className="mt-0.5 block font-sans text-xs text-muted">{description}</span>
+              <span className="mt-0.5 block text-xs text-muted">{description}</span>
             </span>
           </li>
         ))}
       </ol>
       <div className="my-[18px] rounded-lg border-[3px] border-navy bg-mint-soft p-3">
         <strong>Sąvokos</strong>
-        <p className="mb-0 mt-1 font-sans leading-[1.4]">Biudžetas – kiek galime išleisti. Išlaidos – ką išleidome. Rezervas – pinigai netikėtumams.</p>
+        <p className="mb-0 mt-1 leading-[1.4]">Biudžetas – kiek galime išleisti. Išlaidos – ką išleidome. Rezervas – pinigai netikėtumams.</p>
       </div>
       <button className={classes(primaryButton, "w-full")} type="button" onClick={onClose}>Aišku, pradėkime</button>
     </DialogShell>
@@ -81,44 +105,62 @@ export function HelpDialog({ onClose }: { onClose: () => void }) {
 type EventDialogProps = {
   mode: GameMode;
   activeEvents: readonly MysteryEvent[];
+  revealedEventIds: readonly MysteryEventId[];
   onToggle: (event: MysteryEvent) => void;
-  onClear: () => void;
   onClose: () => void;
 };
 
-export function EventDialog({ mode, activeEvents, onToggle, onClear, onClose }: EventDialogProps) {
+export function EventDialog({ mode, activeEvents, revealedEventIds, onToggle, onClose }: EventDialogProps) {
   return (
-    <DialogShell labelledBy="event-title" onClose={onClose} className="w-full max-w-[900px]">
-      <p className={eyebrow}>Mokytojo valdomas posūkis</p>
-      <h2 id="event-title" className="m-0 text-[clamp(30px,3vw,42px)] tracking-[-.04em]">Pasirinkite netikėtus įvykius</h2>
-      <p className="mb-5 mt-2 font-sans text-[15px] text-muted">Galite įjungti kelis įvykius. Aptarkite, ar rezervas padės prie jų prisitaikyti.</p>
-      <div className="grid grid-cols-3 gap-3">
+    <DialogShell labelledBy="event-title" onClose={onClose} className="w-full max-w-[1100px]" closeButton="icon">
+      <h2 id="event-title" className="m-0 text-[clamp(36px,3.5vw,50px)] tracking-[-.04em]">Netikėtų įvykių kortelės</h2>
+      <p className="mb-6 mt-2 text-lg text-muted">Atverskite kortelę, kad įvykis iškart įsigaliotų. Aptarkite, ar rezervas padės prie jo prisitaikyti.</p>
+      <div className="grid grid-cols-3 gap-4">
         {mode.mysteryEvents.map((event) => {
+          const isRevealed = revealedEventIds.includes(event.id);
           const isActive = activeEvents.some((active) => active.id === event.id);
+          const actionLabel = !isRevealed
+            ? "Atversti netikėto įvykio kortelę"
+            : `${event.title}. ${isActive ? "Išjungti" : "Įjungti"} įvykį`;
+
           return (
             <button
               key={event.id}
               type="button"
-              aria-pressed={isActive}
-              className={classes(
-                "flex min-h-[180px] flex-col items-center justify-center rounded-[14px] border-[3px] border-navy bg-white p-[18px] text-center text-navy shadow-[0_4px_0_#17233f] hover:-translate-y-0.5 hover:bg-[#ffe3dd] hover:shadow-[0_6px_0_#17233f]",
-                isActive && "-translate-y-0.5 bg-[#ffe3dd] shadow-[0_6px_0_#17233f]",
-              )}
+              aria-label={actionLabel}
+              aria-pressed={isRevealed ? isActive : undefined}
+              className="min-h-[230px] [perspective:900px] hover:-translate-y-0.5"
               onClick={() => onToggle(event)}
             >
-              <span className="relative grid h-16 w-20 place-items-center" aria-hidden="true">
-                <img className="h-16 w-20 object-contain" src={EVENT_ART_SOURCES[event.id]} alt="" draggable={false} />
-                {isActive && <span className="absolute -right-1 -top-1 grid size-7 place-items-center rounded-full border-2 border-navy bg-teal text-sm font-black text-white">✓</span>}
+              <span className={classes("event-card-inner relative block min-h-[230px] w-full", isRevealed && "event-card-inner--revealed")}>
+                <span className="event-card-face event-card-back absolute inset-0 grid place-items-center overflow-hidden rounded-2xl border-[3px] border-navy shadow-[0_4px_0_#17233f]" aria-hidden="true">
+                  <span className="relative grid h-36 w-40 place-items-center">
+                    <img
+                      className="absolute size-full object-contain brightness-0 opacity-65"
+                      src={EVENT_ART_SOURCES[event.id]}
+                      alt=""
+                      draggable={false}
+                    />
+                    <span className="relative z-10 text-[58px] font-black leading-none text-cream">?</span>
+                  </span>
+                </span>
+                <span
+                  className={classes(
+                    "event-card-face event-card-front absolute inset-0 flex flex-col items-center justify-center rounded-2xl border-[3px] border-navy p-4 text-center text-navy shadow-[0_4px_0_#17233f]",
+                    isActive ? "bg-[#ffe3dd]" : "bg-white grayscale opacity-55",
+                  )}
+                  aria-hidden={!isRevealed}
+                >
+                  <span className="grid h-32 w-36 place-items-center" aria-hidden="true">
+                    <img className="h-32 w-36 object-contain" src={EVENT_ART_SOURCES[event.id]} alt="" draggable={false} />
+                  </span>
+                  <strong className="mt-3 text-xl">{event.title}</strong>
+                  <small className="mt-2 text-sm leading-[1.35] text-muted">{event.description}</small>
+                </span>
               </span>
-              <strong className="mt-2.5 text-lg">{event.title}</strong>
-              <small className="mt-1.5 font-sans text-xs leading-[1.35] text-muted">{event.description}</small>
             </button>
           );
         })}
-      </div>
-      <div className="mt-4 flex justify-end gap-2 [&>button]:min-w-[190px]">
-        {activeEvents.length > 0 && <button className="min-h-11 rounded-lg border-2 border-navy bg-transparent font-black text-navy" type="button" onClick={onClear}>Pašalinti visus įvykius</button>}
-        <button className={primaryButton} type="button" onClick={onClose}>Atlikta</button>
       </div>
     </DialogShell>
   );
@@ -128,49 +170,33 @@ type ChallengeDialogProps = {
   mode: GameMode;
   plan: GamePlan;
   selection: Selection;
-  activeChallenges: readonly ChallengeCard[];
-  onToggle: (challenge: ChallengeCard) => void;
-  onClear: () => void;
   onClose: () => void;
 };
 
-export function ChallengeDialog({ mode, plan, selection, activeChallenges, onToggle, onClear, onClose }: ChallengeDialogProps) {
+export function ChallengeDialog({ mode, plan, selection, onClose }: ChallengeDialogProps) {
   return (
-    <DialogShell labelledBy="challenge-title" onClose={onClose} className="w-full max-w-[900px]">
-      <p className={eyebrow}>Papildomas klasės iššūkis</p>
-      <h2 id="challenge-title" className="m-0 text-[clamp(30px,3vw,42px)] tracking-[-.04em]">Pasirinkite iššūkius</h2>
-      <p className="mb-5 mt-2 font-sans text-[15px] text-muted">Galite pasirinkti kelis. Iššūkiai yra neprivalomi ir netrukdo užbaigti pagrindinio plano.</p>
-      <div className="grid grid-cols-3 gap-3">
+    <DialogShell labelledBy="challenge-title" onClose={onClose} className="w-full max-w-[1100px]" closeButton="icon">
+      <h2 id="challenge-title" className="m-0 text-[clamp(36px,3.5vw,50px)] tracking-[-.04em]">Iššūkių lenta</h2>
+      <p className="mb-6 mt-2 text-lg text-muted">Iššūkiai yra neprivalomi. Jų būsena keičiasi kartu su jūsų planu.</p>
+      <div className="grid grid-cols-3 gap-4">
         {CHALLENGES.map((challenge) => {
-          const isActive = activeChallenges.some((active) => active.id === challenge.id);
           const isComplete = challengeCompleted(challenge, mode, selection, plan);
           return (
-            <button
+            <article
               key={challenge.id}
-              type="button"
-              aria-pressed={isActive}
               className={classes(
-                "flex min-h-[180px] flex-col items-center justify-center rounded-[14px] border-[3px] border-navy bg-white p-[18px] text-center text-navy shadow-[0_4px_0_#17233f] hover:-translate-y-0.5 hover:bg-blue-soft/40 hover:shadow-[0_6px_0_#17233f]",
-                isActive && "-translate-y-0.5 bg-blue-soft/60 shadow-[0_6px_0_#17233f]",
+                "flex min-h-[230px] flex-col items-center justify-center rounded-2xl border-[3px] border-navy bg-white p-4 text-center text-navy shadow-[0_4px_0_#17233f]",
+                !isComplete && "grayscale opacity-55",
               )}
-              onClick={() => onToggle(challenge)}
             >
-              <span className="relative grid h-16 w-20 place-items-center" aria-hidden="true">
-                <img className="h-16 w-20 object-contain" src={CHALLENGE_ART_SOURCES[challenge.id]} alt="" draggable={false} />
-                {isActive && <span className="absolute -right-1 -top-1 grid size-7 place-items-center rounded-full border-2 border-navy bg-teal text-sm font-black text-white">✓</span>}
+              <span className="grid h-32 w-36 place-items-center" aria-hidden="true">
+                <img className="h-32 w-36 object-contain" src={CHALLENGE_ART_SOURCES[challenge.id]} alt="" draggable={false} />
               </span>
-              <strong className="mt-2.5 text-lg">{challenge.title}</strong>
-              <small className="mt-1.5 font-sans text-xs leading-[1.35] text-muted">{challengeDescription(challenge, mode)}</small>
-              <span className={classes("mt-2 rounded-md px-2 py-1 text-[10px] font-black", isComplete ? "bg-teal text-white" : "bg-[#e8e1d2] text-muted")}>
-                {isComplete ? "Įvykdyta" : "Dar neįvykdyta"}
-              </span>
-            </button>
+              <strong className="mt-3 text-xl">{challenge.title}</strong>
+              <small className="mt-2 text-sm leading-[1.35] text-muted">{challengeDescription(challenge, mode)}</small>
+            </article>
           );
         })}
-      </div>
-      <div className="mt-4 flex justify-end gap-2 [&>button]:min-w-[190px]">
-        {activeChallenges.length > 0 && <button className="min-h-11 rounded-lg border-2 border-navy bg-transparent font-black text-navy" type="button" onClick={onClear}>Pašalinti visus iššūkius</button>}
-        <button className={primaryButton} type="button" onClick={onClose}>Atlikta</button>
       </div>
     </DialogShell>
   );
@@ -187,14 +213,13 @@ export function ParticipantDialog({ participants, totalParticipants, onChange, o
   const additionalGuests = totalParticipants - participants;
 
   return (
-    <DialogShell labelledBy="participants-title" onClose={onClose} className="w-full max-w-[570px] text-center">
-      <p className={eyebrow}>Žaidimo sudėtingumas</p>
+    <DialogShell labelledBy="participants-title" onClose={onClose} className="w-full max-w-[570px] text-center" closeButton="icon">
       <h2 id="participants-title" className="m-0 text-[36px] tracking-[-.04em]">Kiek klasėje mokinių?</h2>
-      <p className="mx-auto mb-6 mt-3 max-w-[470px] font-sans text-[15px] leading-relaxed text-muted">
-        Keisdami skaičių galite reguliuoti žaidimo sudėtingumą. Kuo daugiau mokinių, tuo daugiau porcijų reikės. O ar labai didelei klasei apskritai įmanoma sudaryti tinkamą planą? Pabandykite.
+      <p className="mx-auto mb-6 mt-3 max-w-[470px] text-[15px] leading-relaxed text-muted">
+        Kuo daugiau mokinių, tuo daugiau porcijų reikės
       </p>
 
-      <div className="rounded-2xl border-[3px] border-navy bg-[#fff1b9] p-5">
+      <div>
         <div className="mx-auto grid max-w-[330px] grid-cols-[64px_1fr_64px] items-center gap-4">
           <button className="grid size-16 place-items-center rounded-full border-[3px] border-navy bg-white text-[34px] font-black leading-none disabled:cursor-not-allowed disabled:opacity-35" type="button" onClick={() => onChange(participants - 1)} disabled={participants === PARTICIPANT_RANGE.min} aria-label="Sumažinti mokinių skaičių">−</button>
           <div aria-live="polite">
@@ -212,63 +237,121 @@ export function ParticipantDialog({ participants, totalParticipants, onChange, o
           onChange={(event) => onChange(Number(event.currentTarget.value))}
           aria-label="Mokinių skaičius"
         />
-        <div className="mt-1 flex justify-between font-sans text-[10px] font-bold text-muted"><span>{PARTICIPANT_RANGE.min}</span><span>{PARTICIPANT_RANGE.max}</span></div>
       </div>
 
       {additionalGuests > 0 && (
-        <p className="my-4 rounded-lg bg-coral/35 p-3 font-sans text-sm">
+        <p className="my-4 rounded-lg bg-coral/35 p-3 text-sm">
           Netikėtas įvykis pridėjo dar <strong>{additionalGuests}</strong>. Dabar vaišių turi užtekti <strong>{totalParticipants} žmonėms</strong>.
         </p>
       )}
-      <button className={classes(primaryButton, "mt-4 w-full")} type="button" onClick={onClose}>Atlikta</button>
     </DialogShell>
   );
 }
 
 type CompletionDialogProps = {
-  mode: GameMode;
   plan: GamePlan;
-  activeEvents: readonly MysteryEvent[];
-  activeChallenges: readonly ChallengeCard[];
-  selection: Selection;
-  choice: LeftoverChoice | null;
-  onChoice: (choice: LeftoverChoice) => void;
+  spoilingFoodChoice: FoodLeftoverChoice | null;
+  longLastingFoodChoice: LongLastingFoodLeftoverChoice | null;
+  moneyChoice: MoneyLeftoverChoice | null;
+  onSpoilingFoodChoice: (choice: FoodLeftoverChoice) => void;
+  onLongLastingFoodChoice: (choice: LongLastingFoodLeftoverChoice) => void;
+  onMoneyChoice: (choice: MoneyLeftoverChoice) => void;
+  onNewCelebration: () => void;
   onContinue: () => void;
 };
 
-export function CompletionDialog({ mode, plan, activeEvents, activeChallenges, selection, choice, onChoice, onContinue }: CompletionDialogProps) {
-  const completedChallenges = activeChallenges.filter((challenge) => challengeCompleted(challenge, mode, selection, plan));
+export function CompletionDialog({
+  plan,
+  spoilingFoodChoice,
+  longLastingFoodChoice,
+  moneyChoice,
+  onSpoilingFoodChoice,
+  onLongLastingFoodChoice,
+  onMoneyChoice,
+  onNewCelebration,
+  onContinue,
+}: CompletionDialogProps) {
+  const remainingMoney = plan.available + plan.reserve;
+  const hasSpoilingFood = plan.spoilingSnackLeftovers > 0;
+  const hasLongLastingFood = plan.longLastingSnackLeftovers > 0;
+  const hasMoney = remainingMoney > 0;
+  const hasLeftovers = hasSpoilingFood || hasLongLastingFood || hasMoney;
+  const decisionsComplete = (!hasSpoilingFood || spoilingFoodChoice !== null)
+    && (!hasLongLastingFood || longLastingFoodChoice !== null)
+    && (!hasMoney || moneyChoice !== null);
 
   return (
-    <DialogShell labelledBy="completion-title" onClose={onContinue} className="w-full max-w-[760px] pt-[46px] text-center" lightBackdrop>
-      <div className="mx-auto mb-3 grid size-[62px] place-items-center rounded-full border-4 border-navy bg-teal text-[34px] font-black text-white shadow-[4px_4px_0_#17233f]" aria-hidden="true">✓</div>
-      <p className={eyebrow}>Planas tinka</p>
-      <h2 id="completion-title" className="m-0 text-[clamp(30px,3vw,42px)] tracking-[-.04em]">Šventę galima surengti!</h2>
-      <p className="mb-[17px] mt-2.5 font-sans text-muted">
-        Rezervas: <strong>{formatEuros(plan.reserve)}</strong>
-        {activeEvents.length > 0 && <> · Įvykiai: <strong>{activeEvents.length}</strong></>}
-        {activeChallenges.length > 0 && <> · Iššūkiai: <strong>{completedChallenges.length} iš {activeChallenges.length}</strong></>}
-      </p>
-      {plan.available > 0 ? (
-        <div className="rounded-xl border-[3px] border-navy bg-[#fff1b9] p-4">
-          <h3 className="mb-3 mt-0 text-xl">Ką darysime su likusiais {formatEuros(plan.available)}?</h3>
-          <div className="grid grid-cols-2 gap-2">
-            {LEFTOVER_CHOICES.map((option) => (
-              <button className={classes("min-h-12 rounded-lg border-2 border-navy bg-white px-2.5 py-2 text-xs font-black text-navy", choice === option.id && "bg-yellow shadow-[inset_0_-3px_0_#e1a72b]")} type="button" key={option.id} onClick={() => onChoice(option.id)}>
-                {option.label}
-              </button>
-            ))}
-            <button className="min-h-12 rounded-lg border-2 border-navy bg-white px-2.5 py-2 text-xs font-black text-navy" type="button" onClick={onContinue}>Papildyti šventės planą</button>
-          </div>
+    <DialogShell labelledBy="completion-title" onClose={onContinue} className="w-full max-w-[800px] !p-6 text-center" lightBackdrop>
+      <div className="mx-auto mb-2 grid size-12 place-items-center rounded-full border-[3px] border-navy bg-teal text-2xl font-black text-white shadow-[3px_3px_0_#17233f]" aria-hidden="true">✓</div>
+      <h2 id="completion-title" className="m-0 text-[clamp(30px,3vw,38px)] tracking-[-.04em]">Šventę galima surengti!</h2>
+      {hasLeftovers ? (
+        <div className="my-3 grid gap-2 text-left">
+          {hasSpoilingFood && (
+            <DecisionGroup
+              title="Greitai gendantys užkandžiai"
+              amount={`${plan.spoilingSnackLeftovers} porc.`}
+              options={FOOD_LEFTOVER_CHOICES}
+              choice={spoilingFoodChoice}
+              onChoice={onSpoilingFoodChoice}
+            />
+          )}
+          {hasLongLastingFood && (
+            <DecisionGroup
+              title="Ilgai išliekantys užkandžiai"
+              amount={`${plan.longLastingSnackLeftovers} porc.`}
+              options={LONG_LASTING_FOOD_LEFTOVER_CHOICES}
+              choice={longLastingFoodChoice}
+              onChoice={onLongLastingFoodChoice}
+            />
+          )}
+          {hasMoney && (
+            <DecisionGroup
+              title="Likę pinigai"
+              amount={formatEuros(remainingMoney)}
+              options={MONEY_LEFTOVER_CHOICES}
+              choice={moneyChoice}
+              onChoice={onMoneyChoice}
+            />
+          )}
         </div>
-      ) : (
-        <p className="rounded-xl bg-[#e8e1d2] p-[15px] font-sans">Laisvų pinigų neliko, tačiau pasirinktame rezerve yra {formatEuros(plan.reserve)}.</p>
-      )}
-      <div className="my-4 rounded-lg bg-mint-soft p-3 text-left">
-        <span className="block text-[9px] font-black uppercase text-teal-dark">Aptarimui</span>
-        <strong className="mt-1 block font-sans text-sm">{mode.reflection[0]}</strong>
+      ) : <p className="my-3 rounded-xl bg-[#e8e1d2] p-3">Maisto ir pinigų neliko.</p>}
+      <div className="grid grid-cols-2 gap-2.5">
+        <button className="min-h-[50px] rounded-lg border-[3px] border-navy bg-white px-[18px] font-black text-navy" type="button" onClick={onContinue}>Grįžti prie stalo</button>
+        <button className={classes(primaryButton, "disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none")} type="button" onClick={onNewCelebration} disabled={!decisionsComplete}>Rengti naują šventę</button>
       </div>
-      <button className={classes(primaryButton, "w-full")} type="button" onClick={onContinue}>Grįžti prie stalo</button>
     </DialogShell>
+  );
+}
+
+function DecisionGroup<Choice extends string>({ title, amount, options, choice, onChoice }: {
+  title: string;
+  amount: string;
+  options: ReadonlyArray<{ id: Choice; label: string }>;
+  choice: Choice | null;
+  onChoice: (choice: Choice) => void;
+}) {
+  return (
+    <section className="rounded-xl border-2 border-navy bg-[#fff1b9] p-2.5">
+      <div className="mb-1.5 flex items-baseline justify-between gap-3">
+        <h3 className="m-0 text-base">{title}</h3>
+        <strong className="shrink-0 text-base">{amount}</strong>
+      </div>
+      <div className={classes("grid gap-1.5", options.length === 3 ? "grid-cols-3" : "grid-cols-2")}>
+        {options.map((option) => (
+          <button
+            className={classes(
+              "min-h-9 rounded-lg border-2 border-navy bg-white px-2 py-1 text-xs font-black text-navy",
+              choice === option.id && "bg-yellow shadow-[inset_0_-3px_0_#e1a72b]",
+            )}
+            type="button"
+            key={option.id}
+            aria-pressed={choice === option.id}
+            onClick={() => onChoice(option.id)}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+    </section>
   );
 }

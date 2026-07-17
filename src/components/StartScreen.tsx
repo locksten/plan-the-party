@@ -9,7 +9,7 @@ export function StartScreen({ onStart }: { onStart: (modeId: ModeId) => void }) 
         <h1 className="m-0 text-[clamp(44px,5vw,68px)] font-black leading-[.94] tracking-[-.055em] text-white [text-shadow:4px_4px_0_#17233f]">
           Atverkite duris į<br /><span className="text-yellow">klasės šventę!</span>
         </h1>
-        <p className="mx-auto mt-3 max-w-[760px] font-sans text-[clamp(16px,1.6vw,20px)] font-bold text-teal-dark">
+        <p className="mx-auto mt-3 max-w-[760px] text-[clamp(16px,1.6vw,20px)] font-bold text-teal-dark">
           Pasirinkite lygį. Tada tempkite daiktus ant šventės stalo ir saugokite biudžetą.
         </p>
       </section>
@@ -29,7 +29,7 @@ export function StartScreen({ onStart }: { onStart: (modeId: ModeId) => void }) 
               <div className="flex h-[205px] flex-col items-center rounded-[95px_95px_10px_10px] border-4 border-navy bg-cream px-[18px] pb-[13px] pt-4 text-center">
                 <p className="text-[11px] font-black uppercase tracking-[.08em] text-teal-dark">{mode.grades}</p>
                 <strong className="mt-1 text-2xl tracking-[-.03em]">{mode.title}</strong>
-                <small className="mt-1 font-sans text-xs font-bold text-muted">{visual.callout}</small>
+                <small className="mt-1 text-xs font-bold text-muted">{visual.callout}</small>
                 <div className="mb-2 mt-auto flex w-full justify-center gap-2">
                   <span className="rounded-lg border-2 border-navy bg-white px-2 py-1 text-xs font-black">{formatEuros(mode.budget)}</span>
                   <span className="rounded-lg border-2 border-navy bg-white px-2 py-1 text-xs font-black">rezervą renkatės</span>

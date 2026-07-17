@@ -1,53 +1,64 @@
-import type { CategoryId, GameItem, GamePlan, Selection } from "../../game";
-import { CATEGORY_ACCENT, classes } from "../../ui";
+import { useAutoAnimate } from "@formkit/auto-animate/react";
+import { assert, type CategoryId, type GameItem, type GamePlan, type Selection } from "../../game";
+import { classes } from "../../ui";
 import type { BeginDrag, DragPointerHandler } from "./drag";
+import { ItemImage } from "./ItemImage";
+
+type PlacedItem = {
+  placementId: string;
+  item: GameItem;
+  selectionIndex: number;
+};
 
 type PartyTableProps = {
   items: readonly GameItem[];
   selection: Selection;
   plan: GamePlan;
   showProblems: boolean;
-  onRemove: (item: GameItem) => void;
+  onRemoveAt: (selectionIndex: number) => void;
   onBeginDrag: BeginDrag;
   onMoveDrag: DragPointerHandler;
   onFinishDrag: DragPointerHandler;
   onCancelDrag: DragPointerHandler;
 };
 
-export function PartyTable({ items, selection, plan, showProblems, onRemove, onBeginDrag, onMoveDrag, onFinishDrag, onCancelDrag }: PartyTableProps) {
-  const selectedItems = items.filter((item) => (selection[item.id] ?? 0) > 0);
-  const selectedByCategory = (category: CategoryId) => selectedItems.filter((item) => item.category === category);
+export function PartyTable({ items, selection, plan, showProblems, onRemoveAt, onBeginDrag, onMoveDrag, onFinishDrag, onCancelDrag }: PartyTableProps) {
+  const itemsById = new Map(items.map((item) => [item.id, item]));
+  const selectedByCategory = (category: CategoryId): PlacedItem[] => selection.flatMap((entry, selectionIndex) => {
+    const item = itemsById.get(entry.itemId);
+    assert(item !== undefined, `Pasirinkta nežinoma prekė „${entry.itemId}“.`);
+    return item.category === category ? [{ placementId: entry.placementId, item, selectionIndex }] : [];
+  });
   const dragHandlers = { onBeginDrag, onMoveDrag, onFinishDrag, onCancelDrag };
 
   return (
     <section className="min-h-0 min-w-0" aria-label="Klasės šventės stalas">
-      <div className="grid h-full w-full grid-rows-[minmax(58px,.75fr)_minmax(108px,2fr)_minmax(54px,.7fr)] gap-2 rounded-[48%/18%] border-[5px] border-navy bg-table px-[clamp(24px,3vw,54px)] py-3 shadow-[inset_0_0_0_7px_#a7503d,0_8px_0_rgba(23,35,63,.25)]">
-        <TableZone category="papildomai" title="Papuošimai" items={selectedByCategory("papildomai")} selection={selection} onRemove={onRemove} {...dragHandlers} />
+      <div className="grid h-full w-full grid-rows-[minmax(58px,.75fr)_minmax(108px,2fr)_minmax(54px,.7fr)] gap-2 overflow-hidden rounded-[48%/18%] border-[5px] border-navy bg-table px-[clamp(24px,3vw,54px)] py-3 shadow-[inset_0_0_0_7px_#a7503d,0_8px_0_rgba(23,35,63,.25)]">
+        <TableZone category="papildomai" title="Papuošimai" items={selectedByCategory("papildomai")} onRemoveAt={onRemoveAt} {...dragHandlers} />
         <div className="grid min-h-0 grid-cols-2">
           <TableZone
             category="gerimai"
             title="Gėrimai"
             items={selectedByCategory("gerimai")}
-            selection={selection}
             people={plan.participants}
             covered={plan.drinkPortions}
             attention={showProblems && (plan.participants === undefined ? !plan.hasDrink : plan.drinkPortions < plan.participants)}
-            onRemove={onRemove}
+            onRemoveAt={onRemoveAt}
             {...dragHandlers}
           />
           <TableZone
             category="uzkandziai"
             title="Užkandžiai"
             items={selectedByCategory("uzkandziai")}
-            selection={selection}
             people={plan.participants}
             covered={plan.snackPortions}
+            carried={plan.carriedSnackPortions}
             attention={showProblems && (plan.participants === undefined ? !plan.hasSnack : plan.snackPortions < plan.participants)}
-            onRemove={onRemove}
+            onRemoveAt={onRemoveAt}
             {...dragHandlers}
           />
         </div>
-        <TableZone category="veikla" title="Bendra veikla" items={selectedByCategory("veikla")} selection={selection} attention={showProblems && !plan.hasActivity} onRemove={onRemove} {...dragHandlers} />
+        <TableZone category="veikla" title="Bendra veikla" items={selectedByCategory("veikla")} attention={showProblems && !plan.hasActivity} onRemoveAt={onRemoveAt} {...dragHandlers} />
       </div>
     </section>
   );
@@ -56,19 +67,21 @@ export function PartyTable({ items, selection, plan, showProblems, onRemove, onB
 type TableZoneProps = {
   category: CategoryId;
   title: string;
-  items: readonly GameItem[];
-  selection: Selection;
+  items: readonly PlacedItem[];
   people?: number;
   covered?: number;
+  carried?: number;
   attention?: boolean;
-  onRemove: (item: GameItem) => void;
+  onRemoveAt: (selectionIndex: number) => void;
   onBeginDrag: BeginDrag;
   onMoveDrag: DragPointerHandler;
   onFinishDrag: DragPointerHandler;
   onCancelDrag: DragPointerHandler;
 };
 
-function TableZone({ category, title, items, selection, people, covered = 0, attention = false, onRemove, onBeginDrag, onMoveDrag, onFinishDrag, onCancelDrag }: TableZoneProps) {
+function TableZone({ category, title, items, people, covered = 0, carried = 0, attention = false, onRemoveAt, onBeginDrag, onMoveDrag, onFinishDrag, onCancelDrag }: TableZoneProps) {
+  const [itemsRef] = useAutoAnimate<HTMLDivElement>({ duration: 220, easing: "ease-out" });
+
   return (
     <section
       className={classes(
@@ -82,52 +95,66 @@ function TableZone({ category, title, items, selection, people, covered = 0, att
       data-zone-title={title}
       aria-label={title}
     >
-      <div className="flex min-h-8 flex-1 flex-wrap items-center justify-center gap-1.5">
-        {items.map((item) => {
-          const quantity = selection[item.id] ?? 0;
-          return (
-            <div
-              key={item.id}
-              className="relative grid max-w-36 cursor-grab touch-none select-none grid-cols-[25px_minmax(0,1fr)_auto] items-center gap-1 rounded-2xl border-2 border-navy bg-white py-1 pl-1 pr-2 shadow-[0_3px_0_#17233f]"
-              role="button"
-              tabIndex={0}
-              aria-label={`${item.name}, kiekis ${quantity}. Palieskite, kad nuimtumėte vieną.`}
-              onPointerDown={(event) => onBeginDrag(event, item, "table")}
-              onPointerMove={onMoveDrag}
-              onPointerUp={onFinishDrag}
-              onPointerCancel={onCancelDrag}
-              onKeyDown={(event) => {
-                if (event.key !== "Enter" && event.key !== " ") return;
-                event.preventDefault();
-                onRemove(item);
-              }}
-            >
-              <span className={classes("grid size-6 place-items-center rounded-full border-2 border-navy text-[10px] font-black", CATEGORY_ACCENT[item.category])} aria-hidden="true">{item.name.slice(0, 1)}</span>
-              <strong className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[9px] leading-none">{item.name}</strong>
-              {quantity > 1 && <b className="min-w-7 rounded-lg bg-yellow px-1.5 py-1 text-center text-[13px]">×{quantity}</b>}
-            </div>
-          );
-        })}
+      <div
+        ref={itemsRef}
+        className={classes(
+          "flex min-h-8 flex-1 flex-wrap content-center items-center justify-center gap-1",
+          (category === "gerimai" || category === "uzkandziai") && "relative top-4",
+          category === "papildomai" && "relative top-[7px]",
+          category === "veikla" && "relative top-[13px]",
+        )}
+      >
+        {items.map(({ placementId, item, selectionIndex }) => (
+          <div
+            key={placementId}
+            className="relative h-[clamp(75px,9vw,146px)] max-h-full shrink-0 aspect-square cursor-grab touch-none select-none"
+            role="button"
+            tabIndex={0}
+            aria-label={`${item.name}${item.portions === undefined ? "" : `, ${item.portions} porcijos`}. Palieskite, kad nuimtumėte vieną.`}
+            onPointerDown={(event) => onBeginDrag(event, item, "table", selectionIndex)}
+            onPointerMove={onMoveDrag}
+            onPointerUp={onFinishDrag}
+            onPointerCancel={onCancelDrag}
+            onKeyDown={(event) => {
+              if (event.key !== "Enter" && event.key !== " ") return;
+              event.preventDefault();
+              onRemoveAt(selectionIndex);
+            }}
+          >
+            <ItemImage item={item} className="size-full motion-safe:animate-table-item-enter" />
+          </div>
+        ))}
       </div>
-      {(category === "gerimai" || category === "uzkandziai") && <SeatDots people={people} covered={covered} hasChoice={items.length > 0} />}
+      {(category === "gerimai" || category === "uzkandziai") && <SeatDots people={people} covered={covered} carried={carried} hasChoice={items.length > 0} />}
     </section>
   );
 }
 
-function SeatDots({ people, covered, hasChoice }: { people?: number; covered: number; hasChoice: boolean }) {
+function SeatDots({ people, covered, carried, hasChoice }: { people?: number; covered: number; carried: number; hasChoice: boolean }) {
   if (people === undefined) {
     return hasChoice ? null : <div className="relative z-10 mt-2 rounded-xl bg-cream/20 px-2.5 py-2 text-center text-sm font-black text-red-dark">Dar nepasirinkta</div>;
   }
 
   const filled = Math.min(people, covered);
+  const carriedFilled = Math.min(filled, carried);
+  const excess = Math.max(0, covered - people);
+  const label = excess === 0 ? `${filled} porcijos iš ${people}` : `${people} porcijos ir ${excess} papildomos`;
+  const carriedLabel = carriedFilled > 0 ? `, ${carriedFilled} iš ankstesnės šventės` : "";
   return (
-    <div className="relative z-10 mt-2 grid grid-cols-[1fr_auto] items-center gap-3 rounded-xl bg-cream/20 px-2.5 py-2">
-      <div className="flex flex-wrap gap-1" aria-hidden="true">
+    <div className="relative z-10 mt-2 w-fit max-w-full self-center rounded-xl bg-cream/20 px-2.5 py-2">
+      <div className="flex flex-wrap items-center gap-[3px]" aria-label={`${label}${carriedLabel}`}>
         {Array.from({ length: people }, (_, index) => (
-          <i className={classes("size-3 rounded-full border-2 border-navy bg-cream", index < filled && "bg-teal")} key={index} />
+          <i
+            className={classes(
+              "size-[14px] rounded-full border-2 border-navy",
+              index < carriedFilled ? "bg-yellow" : index < filled ? "bg-teal" : "bg-cream",
+            )}
+            key={index}
+            aria-hidden="true"
+          />
         ))}
+        {excess > 0 && <strong className="ml-1 text-xs font-black leading-none">+{excess}</strong>}
       </div>
-      {covered < people && <strong className="min-w-24 text-right text-sm font-black text-red-dark">Trūksta {people - covered}</strong>}
     </div>
   );
 }

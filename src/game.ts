@@ -30,11 +30,21 @@ export type GameItem = {
   category: CategoryId;
   price: number;
   portions?: number;
-  note: string;
-  pitch?: string;
+  shelfLife?: "spoiling" | "long-lasting";
+  tag?: string;
   hype?: boolean;
-  art?: ItemArtId;
+  art: ItemArtId;
 };
+
+export type CarryoverResource = Readonly<{
+  id: string;
+  kind: "money" | "long-lasting-snack-portions";
+  amount: number;
+  source: Readonly<{
+    kind: "celebration-leftover";
+    celebrationNumber: number;
+  }>;
+}>;
 
 export type EventEffect =
   | { kind: "expense"; amount: number }
@@ -62,7 +72,13 @@ export type GameMode = {
   reflection: readonly string[];
 };
 
-export type Selection = Readonly<Record<string, number>>;
+export type SelectionEntry = Readonly<{
+  placementId: string;
+  itemId: string;
+}>;
+
+/** Individual placements in the order in which they were added to the table. */
+export type Selection = readonly SelectionEntry[];
 
 export type GamePlan = {
   spent: number;
@@ -75,6 +91,9 @@ export type GamePlan = {
   participants?: number;
   drinkPortions: number;
   snackPortions: number;
+  carriedSnackPortions: number;
+  spoilingSnackLeftovers: number;
+  longLastingSnackLeftovers: number;
   drinkPortionsLost: number;
   snackPortionsLost: number;
   hasDrink: boolean;
@@ -97,59 +116,59 @@ export type ChallengeCard = {
   rule: ChallengeRule;
 };
 
-const MAX_ITEM_QUANTITY = 6;
+const MAX_REPEATABLE_ITEMS_PER_CATEGORY = 6;
 export const PARTICIPANT_RANGE = { min: 6, max: 50 } as const;
 
 const SIMPLE_ITEMS = [
-  { id: "vanduo", name: "Vanduo", category: "gerimai", price: 2, note: "Visai klasei", pitch: "GERIAUSIA KAINA", art: "water-pitchers" },
-  { id: "vaisiu-vanduo", name: "Vaisių vanduo", category: "gerimai", price: 4, note: "Visai klasei", pitch: "GAIVU!", art: "fruit-water" },
-  { id: "obuoliu-sultys", name: "Obuolių sultys", category: "gerimai", price: 6, note: "Visai klasei", pitch: "VAIKŲ MĖGSTAMA", art: "apple-juice" },
-  { id: "silta-kakava", name: "Šilta kakava", category: "gerimai", price: 8, note: "Visai klasei", pitch: "JAUKU!", art: "cocoa-thermos" },
-  { id: "sventinis-limonadas", name: "Šventinis limonadas", category: "gerimai", price: 11, note: "Visai klasei", pitch: "YPAČ MADINGA", hype: true, art: "festive-lemonade" },
+  { id: "vanduo", name: "Vanduo", category: "gerimai", price: 2, art: "water-pitchers" },
+  { id: "vaisiu-vanduo", name: "Vaisių vanduo", category: "gerimai", price: 4, art: "fruit-water" },
+  { id: "obuoliu-sultys", name: "Obuolių sultys", category: "gerimai", price: 6, art: "apple-juice" },
+  { id: "silta-kakava", name: "Šilta kakava", category: "gerimai", price: 8, art: "cocoa-thermos" },
+  { id: "sventinis-limonadas", name: "Šventinis limonadas", category: "gerimai", price: 11, tag: "YPAČ MADINGA", hype: true, art: "festive-lemonade" },
 
-  { id: "vaisiu-lekste", name: "Vaisių lėkštė", category: "uzkandziai", price: 4, note: "Visai klasei", pitch: "SVEIKA!", art: "fruit-platter" },
-  { id: "spragesiai", name: "Spragėsių dubuo", category: "uzkandziai", price: 5, note: "Visai klasei", pitch: "DAUG!", art: "popcorn-bowl" },
-  { id: "sausainiai", name: "Sausainių lėkštė", category: "uzkandziai", price: 7, note: "Visai klasei", pitch: "TRAŠKU!", art: "cookie-plate" },
-  { id: "sumustiniai", name: "Mini sumuštiniai", category: "uzkandziai", price: 10, note: "Visai klasei", pitch: "SOTU!", art: "mini-sandwiches" },
-  { id: "tortas", name: "Šventinis tortas", category: "uzkandziai", price: 13, note: "Visai klasei", pitch: "LABAI SKANU!", hype: true, art: "celebration-cake" },
+  { id: "vaisiu-lekste", name: "Vaisių lėkštė", category: "uzkandziai", price: 4, shelfLife: "spoiling", art: "fruit-platter" },
+  { id: "spragesiai", name: "Spragėsių dubuo", category: "uzkandziai", price: 5, shelfLife: "long-lasting", tag: "ILGAI IŠLIEKA", art: "popcorn-bowl" },
+  { id: "sausainiai", name: "Sausainių lėkštė", category: "uzkandziai", price: 7, shelfLife: "long-lasting", tag: "ILGAI IŠLIEKA", art: "cookie-plate" },
+  { id: "sumustiniai", name: "Mini sumuštiniai", category: "uzkandziai", price: 10, shelfLife: "spoiling", art: "mini-sandwiches" },
+  { id: "tortas", name: "Šventinis tortas", category: "uzkandziai", price: 13, shelfLife: "spoiling", tag: "LABAI SKANU!", hype: true, art: "celebration-cake" },
 
-  { id: "viktorina", name: "Klasės viktorina", category: "veikla", price: 0, note: "Paruošia mokiniai", pitch: "NEMOKAMA!", art: "classroom-quiz" },
-  { id: "judrieji-zaidimai", name: "Judrieji žaidimai", category: "veikla", price: 2, note: "Reikia tik laisvos vietos", pitch: "JUDAM!", art: "active-games" },
-  { id: "stalo-zaidimai", name: "Stalo žaidimų kampelis", category: "veikla", price: 4, note: "Tiks ir kitą kartą", pitch: "DAUGKARTINIAI", art: "board-games" },
-  { id: "sokiu-valanda", name: "Šokių valanda", category: "veikla", price: 6, note: "Reikia kolonėlės", pitch: "ŠVENTĖS HITAS", art: "dance-hour" },
-  { id: "kurybos-dirbtuves", name: "Kūrybos dirbtuvės", category: "veikla", price: 9, note: "Priemonės visai klasei", pitch: "KURIAME!", art: "craft-workshop" },
+  { id: "viktorina", name: "Klasės viktorina", category: "veikla", price: 0, tag: "NEMOKAMA!", art: "classroom-quiz" },
+  { id: "judrieji-zaidimai", name: "Judrieji žaidimai", category: "veikla", price: 2, art: "active-games" },
+  { id: "stalo-zaidimai", name: "Stalo žaidimų kampelis", category: "veikla", price: 4, tag: "DAUGKARTINIAI", art: "board-games" },
+  { id: "sokiu-valanda", name: "Šokių valanda", category: "veikla", price: 6, art: "dance-hour" },
+  { id: "kurybos-dirbtuves", name: "Kūrybos dirbtuvės", category: "veikla", price: 9, art: "craft-workshop" },
 
-  { id: "popierines-girliandos", name: "Popierinės girliandos", category: "papildomai", price: 0, note: "Pasigaminame klasėje", pitch: "PATYS!", art: "paper-garlands" },
-  { id: "vardu-korteles", name: "Vardų kortelės", category: "papildomai", price: 2, note: "Kiekvienam mokiniui", art: "name-cards" },
-  { id: "veliaveles", name: "Medžiaginės vėliavėlės", category: "papildomai", price: 4, note: "Tiks ir kitai šventei", pitch: "DAUGKARTINĖS", art: "fabric-bunting" },
-  { id: "balionai", name: "Spalvoti balionai", category: "papildomai", price: 6, note: "Gražu tik vieną kartą", pitch: "ŠVENTIŠKA!", art: "balloons" },
-  { id: "foto-siena", name: "Šventinė foto siena", category: "papildomai", price: 9, note: "Ryškus klasės kampas", pitch: "WOW!", hype: true, art: "photo-wall" },
+  { id: "popierines-girliandos", name: "Popierinės girliandos", category: "papildomai", price: 0, tag: "PATYS!", art: "paper-garlands" },
+  { id: "vardu-korteles", name: "Vardų kortelės", category: "papildomai", price: 2, art: "name-cards" },
+  { id: "veliaveles", name: "Medžiaginės vėliavėlės", category: "papildomai", price: 4, tag: "DAUGKARTINĖS", art: "fabric-bunting" },
+  { id: "balionai", name: "Spalvoti balionai", category: "papildomai", price: 6, art: "balloons" },
+  { id: "foto-siena", name: "Šventinė foto siena", category: "papildomai", price: 9, tag: "WOW!", hype: true, art: "photo-wall" },
 ] as const satisfies readonly GameItem[];
 
 const ADVANCED_ITEMS = [
-  { id: "vandens-asociai", name: "Vandens ąsočiai", category: "gerimai", price: 2, portions: 24, note: "24 porcijos", pitch: "GERIAUSIA KAINA", art: "water-pitchers" },
-  { id: "vaisiu-vanduo", name: "Vaisių vanduo", category: "gerimai", price: 3, portions: 12, note: "12 porcijų", pitch: "GAIVU!", art: "fruit-water" },
-  { id: "obuoliu-sultys", name: "Obuolių sultys", category: "gerimai", price: 4, portions: 8, note: "8 porcijos", pitch: "SKANU!", art: "apple-juice" },
-  { id: "kakavos-termosas", name: "Kakavos termosas", category: "gerimai", price: 6, portions: 12, note: "12 porcijų", pitch: "JAUKU!", art: "cocoa-thermos" },
-  { id: "sventinis-limonadas", name: "Šventinis limonadas", category: "gerimai", price: 5, portions: 6, note: "6 porcijos", pitch: "YPAČ MADINGA", hype: true, art: "festive-lemonade" },
+  { id: "vandens-asociai", name: "Vandens ąsočiai", category: "gerimai", price: 2, portions: 24, art: "water-pitchers" },
+  { id: "vaisiu-vanduo", name: "Vaisių vanduo", category: "gerimai", price: 3, portions: 12, art: "fruit-water" },
+  { id: "obuoliu-sultys", name: "Obuolių sultys", category: "gerimai", price: 4, portions: 8, art: "apple-juice" },
+  { id: "kakavos-termosas", name: "Kakavos termosas", category: "gerimai", price: 6, portions: 12, art: "cocoa-thermos" },
+  { id: "sventinis-limonadas", name: "Šventinis limonadas", category: "gerimai", price: 5, portions: 6, tag: "YPAČ MADINGA", hype: true, art: "festive-lemonade" },
 
-  { id: "spragesiu-dubuo", name: "Spragėsių dubuo", category: "uzkandziai", price: 3, portions: 12, note: "12 porcijų", pitch: "DAUG PORCIJŲ", art: "popcorn-bowl" },
-  { id: "vaisiu-lekste", name: "Vaisių lėkštė", category: "uzkandziai", price: 5, portions: 12, note: "12 porcijų", pitch: "SVEIKA!", art: "fruit-platter" },
-  { id: "sausainiu-lekste", name: "Sausainių lėkštė", category: "uzkandziai", price: 5, portions: 8, note: "8 porcijos", pitch: "TRAŠKU!", art: "cookie-plate" },
-  { id: "mini-sumustiniai", name: "Mini sumuštiniai", category: "uzkandziai", price: 7, portions: 8, note: "8 porcijos", pitch: "SOTU!", art: "mini-sandwiches" },
-  { id: "sventinis-tortas", name: "Šventinis tortas", category: "uzkandziai", price: 11, portions: 6, note: "6 porcijos", pitch: "LABAI SKANU!", hype: true, art: "celebration-cake" },
+  { id: "spragesiu-dubuo", name: "Spragėsių dubuo", category: "uzkandziai", price: 3, portions: 12, shelfLife: "long-lasting", tag: "ILGAI IŠLIEKA", art: "popcorn-bowl" },
+  { id: "vaisiu-lekste", name: "Vaisių lėkštė", category: "uzkandziai", price: 5, portions: 12, shelfLife: "spoiling", art: "fruit-platter" },
+  { id: "sausainiu-lekste", name: "Sausainių lėkštė", category: "uzkandziai", price: 5, portions: 8, shelfLife: "long-lasting", tag: "ILGAI IŠLIEKA", art: "cookie-plate" },
+  { id: "mini-sumustiniai", name: "Mini sumuštiniai", category: "uzkandziai", price: 7, portions: 8, shelfLife: "spoiling", art: "mini-sandwiches" },
+  { id: "sventinis-tortas", name: "Šventinis tortas", category: "uzkandziai", price: 11, portions: 6, shelfLife: "spoiling", tag: "LABAI SKANU!", hype: true, art: "celebration-cake" },
 
-  { id: "viktorina", name: "Klasės viktorina", category: "veikla", price: 0, note: "Paruošia mokiniai", pitch: "NEMOKAMA!", art: "classroom-quiz" },
-  { id: "judrieji-zaidimai", name: "Judrieji žaidimai", category: "veikla", price: 2, note: "Reikia tik laisvos vietos", pitch: "JUDAM!", art: "active-games" },
-  { id: "stalo-zaidimai", name: "Stalo žaidimų kampelis", category: "veikla", price: 5, note: "Tiks ir kitą kartą", pitch: "DAUGKARTINIAI", art: "board-games" },
-  { id: "sokiu-valanda", name: "Šokių valanda", category: "veikla", price: 7, note: "Reikia kolonėlės", pitch: "ŠVENTĖS HITAS", art: "dance-hour" },
-  { id: "kurybos-dirbtuves", name: "Kūrybos dirbtuvės", category: "veikla", price: 10, note: "Priemonės visai klasei", pitch: "KURIAME!", art: "craft-workshop" },
+  { id: "viktorina", name: "Klasės viktorina", category: "veikla", price: 0, tag: "NEMOKAMA!", art: "classroom-quiz" },
+  { id: "judrieji-zaidimai", name: "Judrieji žaidimai", category: "veikla", price: 2, art: "active-games" },
+  { id: "stalo-zaidimai", name: "Stalo žaidimų kampelis", category: "veikla", price: 5, tag: "DAUGKARTINIAI", art: "board-games" },
+  { id: "sokiu-valanda", name: "Šokių valanda", category: "veikla", price: 7, art: "dance-hour" },
+  { id: "kurybos-dirbtuves", name: "Kūrybos dirbtuvės", category: "veikla", price: 10, art: "craft-workshop" },
 
-  { id: "popierines-girliandos", name: "Popierinės girliandos", category: "papildomai", price: 0, note: "Pasigaminame klasėje", pitch: "PATYS!", art: "paper-garlands" },
-  { id: "vardu-korteles", name: "Vardų kortelės", category: "papildomai", price: 2, note: "Kiekvienam mokiniui", art: "name-cards" },
-  { id: "veliaveles", name: "Medžiaginės vėliavėlės", category: "papildomai", price: 4, note: "Tiks ir kitai šventei", pitch: "DAUGKARTINĖS", art: "fabric-bunting" },
-  { id: "balionai", name: "Spalvoti balionai", category: "papildomai", price: 6, note: "Gražu tik vieną kartą", pitch: "ŠVENTIŠKA!", art: "balloons" },
-  { id: "foto-siena", name: "Šventinė foto siena", category: "papildomai", price: 10, note: "Ryškus klasės kampas", pitch: "WOW!", hype: true, art: "photo-wall" },
+  { id: "popierines-girliandos", name: "Popierinės girliandos", category: "papildomai", price: 0, tag: "PATYS!", art: "paper-garlands" },
+  { id: "vardu-korteles", name: "Vardų kortelės", category: "papildomai", price: 2, art: "name-cards" },
+  { id: "veliaveles", name: "Medžiaginės vėliavėlės", category: "papildomai", price: 4, tag: "DAUGKARTINĖS", art: "fabric-bunting" },
+  { id: "balionai", name: "Spalvoti balionai", category: "papildomai", price: 6, art: "balloons" },
+  { id: "foto-siena", name: "Šventinė foto siena", category: "papildomai", price: 10, tag: "WOW!", hype: true, art: "photo-wall" },
 ] as const satisfies readonly GameItem[];
 
 const SIMPLE_MYSTERY_EVENTS = [
@@ -276,6 +295,13 @@ for (const mode of MODES) {
     const itemCount = mode.items.filter((item) => item.category === category).length;
     assert(itemCount === 5, `Režimo „${mode.id}“ kategorijoje „${category}“ turi būti lygiai 5 pasirinkimai.`);
   }
+  for (const item of mode.items) {
+    if (item.category === "uzkandziai") {
+      assert("shelfLife" in item, `Užkandžiui „${item.id}“ turi būti nurodytas galiojimo laikas.`);
+    } else {
+      assert(!("shelfLife" in item), `Ne užkandžiui „${item.id}“ negalima nurodyti galiojimo laiko.`);
+    }
+  }
   for (const event of mode.mysteryEvents) {
     assert(Number.isInteger(event.effect.amount) && event.effect.amount > 0, `Įvykio „${event.id}“ poveikis turi būti teigiamas sveikasis skaičius.`);
     if (!("participants" in mode)) {
@@ -291,18 +317,50 @@ export function getMode(modeId: ModeId): GameMode {
 }
 
 export function changeSelection(mode: GameMode, selection: Selection, item: GameItem, change: -1 | 1): Selection {
-  assert(mode.items.some((candidate) => candidate.id === item.id), `Prekė „${item.id}“ nepriklauso režimui „${mode.id}“.`);
+  if (change === 1) {
+    if (!canAddItem(mode, selection, item)) return selection;
+  } else {
+    assert(mode.items.some((candidate) => candidate.id === item.id), `Prekė „${item.id}“ nepriklauso režimui „${mode.id}“.`);
+  }
 
-  const currentQuantity = selection[item.id] ?? 0;
-  const canHaveMultiple = mode.participants !== undefined && (item.category === "gerimai" || item.category === "uzkandziai");
-  const maxQuantity = canHaveMultiple ? MAX_ITEM_QUANTITY : 1;
+  const currentQuantity = selectionQuantity(selection, item.id);
+  const canHaveMultiple = item.category === "gerimai" || item.category === "uzkandziai";
+  const maxQuantity = canHaveMultiple ? MAX_REPEATABLE_ITEMS_PER_CATEGORY : 1;
   const nextQuantity = Math.max(0, Math.min(maxQuantity, currentQuantity + change));
   if (nextQuantity === currentQuantity) return selection;
 
-  const next = { ...selection };
-  if (nextQuantity === 0) delete next[item.id];
-  else next[item.id] = nextQuantity;
-  return next;
+  if (change === 1) return [...selection, { placementId: globalThis.crypto.randomUUID(), itemId: item.id }];
+
+  const lastItemIndex = selection.map((entry) => entry.itemId).lastIndexOf(item.id);
+  assert(lastItemIndex >= 0, `Prekės „${item.id}“ nėra tarp pasirinkimų.`);
+  return selection.filter((_, index) => index !== lastItemIndex);
+}
+
+export function canAddItem(mode: GameMode, selection: Selection, item: GameItem): boolean {
+  assert(mode.items.some((candidate) => candidate.id === item.id), `Prekė „${item.id}“ nepriklauso režimui „${mode.id}“.`);
+
+  if (item.category !== "gerimai" && item.category !== "uzkandziai") {
+    return selectionQuantity(selection, item.id) === 0;
+  }
+
+  const itemsById = new Map(mode.items.map((candidate) => [candidate.id, candidate]));
+  const categoryQuantity = selection.reduce((quantity, entry) => {
+    const selectedItem = itemsById.get(entry.itemId);
+    assert(selectedItem !== undefined, `Prekė „${entry.itemId}“ nepriklauso režimui „${mode.id}“.`);
+    return quantity + Number(selectedItem.category === item.category);
+  }, 0);
+  return categoryQuantity < MAX_REPEATABLE_ITEMS_PER_CATEGORY;
+}
+
+export function removeSelectionAt(mode: GameMode, selection: Selection, selectionIndex: number): Selection {
+  assert(Number.isInteger(selectionIndex) && selectionIndex >= 0 && selectionIndex < selection.length, `Netinkama pasirinkimo vieta: ${selectionIndex}.`);
+  const { itemId } = selection[selectionIndex];
+  assert(mode.items.some((item) => item.id === itemId), `Prekė „${itemId}“ nepriklauso režimui „${mode.id}“.`);
+  return selection.filter((_, index) => index !== selectionIndex);
+}
+
+export function selectionQuantity(selection: Selection, itemId: string): number {
+  return selection.reduce((quantity, entry) => quantity + Number(entry.itemId === itemId), 0);
 }
 
 export function calculatePlan(
@@ -311,9 +369,8 @@ export function calculatePlan(
   reserve: number,
   baseParticipants: number | undefined,
   activeEvents: readonly MysteryEvent[],
+  carryoverResources: readonly CarryoverResource[],
 ): GamePlan {
-  assert(Number.isInteger(reserve) && reserve >= 0 && reserve <= mode.budget, `Režimo „${mode.id}“ rezervas turi būti nuo 0 iki ${mode.budget} €.`);
-
   if (mode.participants === undefined) {
     assert(baseParticipants === undefined, `Režimas „${mode.id}“ nenaudoja dalyvių skaičiaus.`);
   } else {
@@ -322,8 +379,10 @@ export function calculatePlan(
   }
 
   const allowedItemIds = new Set(mode.items.map((item) => item.id));
-  for (const itemId of Object.keys(selection)) {
-    assert(allowedItemIds.has(itemId), `Prekė „${itemId}“ nepriklauso režimui „${mode.id}“.`);
+  const placementIds = selection.map((entry) => entry.placementId);
+  assert(new Set(placementIds).size === placementIds.length, "Pasirinkimų vietų ID turi būti unikalūs.");
+  for (const entry of selection) {
+    assert(allowedItemIds.has(entry.itemId), `Prekė „${entry.itemId}“ nepriklauso režimui „${mode.id}“.`);
   }
 
   const allowedEventIds = new Set(mode.mysteryEvents.map((event) => event.id));
@@ -333,16 +392,27 @@ export function calculatePlan(
     assert(allowedEventIds.has(eventId), `Įvykis „${eventId}“ nepriklauso režimui „${mode.id}“.`);
   }
 
+  const carryoverResourceIds = carryoverResources.map((resource) => resource.id);
+  assert(new Set(carryoverResourceIds).size === carryoverResourceIds.length, "Perkeltų išteklių ID turi būti unikalūs.");
+  for (const resource of carryoverResources) {
+    assert(Number.isInteger(resource.amount) && resource.amount > 0, `Perkelto ištekliaus „${resource.id}“ kiekis turi būti teigiamas sveikasis skaičius.`);
+    assert(Number.isInteger(resource.source.celebrationNumber) && resource.source.celebrationNumber > 0, `Perkelto ištekliaus „${resource.id}“ šventės numeris turi būti teigiamas sveikasis skaičius.`);
+  }
+
   let spent = 0;
   let drinkPortions = 0;
-  let snackPortions = 0;
+  let spoilingSnackPortions = 0;
+  const carriedSnackPortions = carryoverResources.reduce(
+    (total, resource) => total + (resource.kind === "long-lasting-snack-portions" ? resource.amount : 0),
+    0,
+  );
+  let longLastingSnackPortions = carriedSnackPortions;
   let hasDrink = false;
-  let hasSnack = false;
+  let hasSnack = longLastingSnackPortions > 0;
   let hasActivity = false;
 
   for (const item of mode.items) {
-    const quantity = selection[item.id] ?? 0;
-    assert(Number.isInteger(quantity) && quantity >= 0, `Netinkamas prekės „${item.id}“ kiekis.`);
+    const quantity = selectionQuantity(selection, item.id);
     spent += item.price * quantity;
     if (quantity === 0) continue;
     if (item.category === "gerimai") {
@@ -351,7 +421,10 @@ export function calculatePlan(
     }
     if (item.category === "uzkandziai") {
       hasSnack = true;
-      snackPortions += (item.portions ?? 0) * quantity;
+      assert(item.shelfLife !== undefined, `Užkandžiui „${item.id}“ nenurodytas galiojimo laikas.`);
+      const portions = (item.portions ?? 0) * quantity;
+      if (item.shelfLife === "spoiling") spoilingSnackPortions += portions;
+      else longLastingSnackPortions += portions;
     }
     if (item.category === "veikla") hasActivity = true;
   }
@@ -383,7 +456,19 @@ export function calculatePlan(
   }
 
   const totalSpent = spent + eventExpenses;
-  const totalFunds = mode.budget + budgetBonus;
+  const carriedMoney = carryoverResources.reduce(
+    (total, resource) => total + (resource.kind === "money" ? resource.amount : 0),
+    0,
+  );
+  const totalFunds = mode.budget + budgetBonus + carriedMoney;
+  assert(Number.isInteger(reserve) && reserve >= 0 && reserve <= totalFunds, `Režimo „${mode.id}“ rezervas turi būti nuo 0 iki ${totalFunds} €.`);
+
+  const snackPortionsBeforeLoss = spoilingSnackPortions + longLastingSnackPortions;
+  const snackPortions = Math.max(0, snackPortionsBeforeLoss - snackPortionsLost);
+  const snackPortionsUsed = snackPortionsLost + (baseParticipants === undefined ? 0 : baseParticipants + additionalParticipants);
+  const spoilingSnackLeftovers = Math.max(0, spoilingSnackPortions - snackPortionsUsed);
+  const longLastingSnackPortionsUsed = Math.max(0, snackPortionsUsed - spoilingSnackPortions);
+  const longLastingSnackLeftovers = Math.max(0, longLastingSnackPortions - longLastingSnackPortionsUsed);
 
   return {
     spent,
@@ -395,7 +480,10 @@ export function calculatePlan(
     available: totalFunds - totalSpent - reserve,
     participants: baseParticipants === undefined ? undefined : baseParticipants + additionalParticipants,
     drinkPortions: Math.max(0, drinkPortions - drinkPortionsLost),
-    snackPortions: Math.max(0, snackPortions - snackPortionsLost),
+    snackPortions,
+    carriedSnackPortions,
+    spoilingSnackLeftovers,
+    longLastingSnackLeftovers,
     drinkPortionsLost,
     snackPortionsLost,
     hasDrink,
@@ -427,15 +515,15 @@ export function challengeCompleted(challenge: ChallengeCard, mode: GameMode, sel
     case "reserveAboveSuggested":
       return plan.reserve >= mode.suggestedReserve + challenge.rule.amount;
     case "freeActivity":
-      return mode.items.some((item) => item.category === "veikla" && item.price === 0 && (selection[item.id] ?? 0) > 0);
+      return mode.items.some((item) => item.category === "veikla" && item.price === 0 && selectionQuantity(selection, item.id) > 0);
     case "minimumAvailable":
       return plan.available >= challenge.rule.amount;
     case "selectedItem":
-      return (selection[challenge.rule.itemId] ?? 0) > 0;
+      return selectionQuantity(selection, challenge.rule.itemId) > 0;
     case "selectedAnyItem":
-      return challenge.rule.itemIds.some((itemId) => (selection[itemId] ?? 0) > 0);
+      return challenge.rule.itemIds.some((itemId) => selectionQuantity(selection, itemId) > 0);
     case "avoidHype":
-      return !mode.items.some((item) => item.hype === true && (selection[item.id] ?? 0) > 0);
+      return !mode.items.some((item) => item.hype === true && selectionQuantity(selection, item.id) > 0);
   }
 }
 

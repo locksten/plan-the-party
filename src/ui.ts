@@ -1,6 +1,8 @@
 import type { CategoryId, ModeId } from "./game";
 
-export type LeftoverChoice = "taupyti" | "klases-tikslui" | "paramai";
+export type FoodLeftoverChoice = "suvalgyti" | "pasidalyti" | "ismesti";
+export type LongLastingFoodLeftoverChoice = FoodLeftoverChoice | "pasilikti-kitai-sventei";
+export type MoneyLeftoverChoice = "kitai-sventei" | "taupyti" | "klases-tikslui" | "paramai";
 
 export const CATEGORIES: ReadonlyArray<{ id: CategoryId; label: string }> = [
   { id: "papildomai", label: "Papuošimai" },
@@ -22,7 +24,19 @@ export const CATEGORY_ACCENT: Record<CategoryId, string> = {
   papildomai: "bg-blue-soft",
 };
 
-export const LEFTOVER_CHOICES: ReadonlyArray<{ id: LeftoverChoice; label: string }> = [
+export const FOOD_LEFTOVER_CHOICES: ReadonlyArray<{ id: FoodLeftoverChoice; label: string }> = [
+  { id: "suvalgyti", label: "Suvalgyti dabar" },
+  { id: "pasidalyti", label: "Pasidalyti" },
+  { id: "ismesti", label: "Išmesti" },
+];
+
+export const LONG_LASTING_FOOD_LEFTOVER_CHOICES: ReadonlyArray<{ id: LongLastingFoodLeftoverChoice; label: string }> = [
+  ...FOOD_LEFTOVER_CHOICES,
+  { id: "pasilikti-kitai-sventei", label: "Pasilikti kitai šventei" },
+];
+
+export const MONEY_LEFTOVER_CHOICES: ReadonlyArray<{ id: MoneyLeftoverChoice; label: string }> = [
+  { id: "kitai-sventei", label: "Pasilikti kitai šventei" },
   { id: "taupyti", label: "Taupyti kitai veiklai" },
   { id: "klases-tikslui", label: "Skirti bendram klasės tikslui" },
   { id: "paramai", label: "Skirti paramai" },

@@ -4,19 +4,23 @@ import { Header } from "./components/Header";
 import { StartScreen } from "./components/StartScreen";
 import { PlanScreen } from "./components/game/PlanScreen";
 import {
+  assert,
   calculatePlan,
   changeSelection,
   getMode,
   PARTICIPANT_RANGE,
   planProblems,
+  removeSelectionAt,
   type CategoryId,
+  type CarryoverResource,
   type GameItem,
-  type ChallengeCard,
   type ModeId,
   type MysteryEvent,
+  type MysteryEventId,
   type Selection,
 } from "./game";
-import type { LeftoverChoice } from "./ui";
+import { preloadGameImages } from "./preloadImages";
+import type { FoodLeftoverChoice, LongLastingFoodLeftoverChoice, MoneyLeftoverChoice } from "./ui";
 
 type Screen = "start" | "plan";
 type Overlay = "help" | "events" | "challenges" | "participants" | "completion";
@@ -24,15 +28,19 @@ type Overlay = "help" | "events" | "challenges" | "participants" | "completion";
 export function App() {
   const [screen, setScreen] = useState<Screen>("start");
   const [modeId, setModeId] = useState<ModeId>("paprasta");
-  const [selection, setSelection] = useState<Selection>({});
+  const [selection, setSelection] = useState<Selection>([]);
   const [category, setCategory] = useState<CategoryId>("gerimai");
   const [problems, setProblems] = useState<readonly string[]>([]);
   const [reserve, setReserve] = useState(0);
   const [baseParticipants, setBaseParticipants] = useState<number | undefined>(undefined);
   const [activeEvents, setActiveEvents] = useState<readonly MysteryEvent[]>([]);
-  const [activeChallenges, setActiveChallenges] = useState<readonly ChallengeCard[]>([]);
+  const [revealedEventIds, setRevealedEventIds] = useState<readonly MysteryEventId[]>([]);
+  const [carryoverResources, setCarryoverResources] = useState<readonly CarryoverResource[]>([]);
+  const [celebrationNumber, setCelebrationNumber] = useState(1);
   const [overlay, setOverlay] = useState<Overlay | null>(null);
-  const [leftoverChoice, setLeftoverChoice] = useState<LeftoverChoice | null>(null);
+  const [spoilingFoodChoice, setSpoilingFoodChoice] = useState<FoodLeftoverChoice | null>(null);
+  const [longLastingFoodChoice, setLongLastingFoodChoice] = useState<LongLastingFoodLeftoverChoice | null>(null);
+  const [moneyChoice, setMoneyChoice] = useState<MoneyLeftoverChoice | null>(null);
 
   useEffect(() => {
     if (overlay === null) return;
@@ -47,27 +55,42 @@ export function App() {
     window.scrollTo(0, 0);
   }, [screen]);
 
+  useEffect(() => {
+    if (screen !== "start") return;
+    void preloadGameImages().catch((error: unknown) => {
+      console.error(error);
+    });
+  }, [screen]);
+
   const mode = getMode(modeId);
-  const plan = calculatePlan(mode, selection, reserve, baseParticipants, activeEvents);
+  const plan = calculatePlan(mode, selection, reserve, baseParticipants, activeEvents, carryoverResources);
+
+  function resetCompletionChoices() {
+    setSpoilingFoodChoice(null);
+    setLongLastingFoodChoice(null);
+    setMoneyChoice(null);
+  }
 
   function invalidateCompletion() {
     setProblems([]);
-    setLeftoverChoice(null);
+    resetCompletionChoices();
     setOverlay((current) => current === "completion" ? null : current);
   }
 
   function startGame(nextModeId: ModeId) {
     const nextMode = getMode(nextModeId);
     setModeId(nextModeId);
-    setSelection({});
+    setSelection([]);
     setCategory("gerimai");
     setProblems([]);
     setReserve(nextMode.suggestedReserve);
     setBaseParticipants(nextMode.participants);
     setActiveEvents([]);
-    setActiveChallenges([]);
+    setRevealedEventIds([]);
+    setCarryoverResources([]);
+    setCelebrationNumber(1);
     setOverlay(null);
-    setLeftoverChoice(null);
+    resetCompletionChoices();
     setScreen("plan");
   }
 
@@ -76,9 +99,14 @@ export function App() {
     setSelection((current) => changeSelection(mode, current, item, change));
   }
 
+  function removeItemAt(selectionIndex: number) {
+    invalidateCompletion();
+    setSelection((current) => removeSelectionAt(mode, current, selectionIndex));
+  }
+
   function changeReserve(change: -1 | 1) {
     invalidateCompletion();
-    setReserve((current) => Math.max(0, Math.min(mode.budget, current + change)));
+    setReserve((current) => Math.max(0, Math.min(plan.totalFunds, current + change)));
   }
 
   function changeParticipants(nextParticipants: number) {
@@ -102,27 +130,57 @@ export function App() {
 
   function toggleEvent(event: MysteryEvent) {
     invalidateCompletion();
+    setRevealedEventIds((current) => current.includes(event.id) ? current : [...current, event.id]);
     setActiveEvents((current) => current.some((active) => active.id === event.id)
       ? current.filter((active) => active.id !== event.id)
       : [...current, event]);
   }
 
-  function toggleChallenge(challenge: ChallengeCard) {
-    setActiveChallenges((current) => current.some((active) => active.id === challenge.id)
-      ? current.filter((active) => active.id !== challenge.id)
-      : [...current, challenge]);
+  function organizeNewCelebration() {
+    const remainingMoney = plan.available + plan.reserve;
+    assert(remainingMoney >= 0, "Negalima pradėti naujos šventės, kol dabartinis planas viršija biudžetą.");
+    assert(plan.spoilingSnackLeftovers === 0 || spoilingFoodChoice !== null, "Nepasirinkta, ką daryti su greitai gendančiu maistu.");
+    assert(plan.longLastingSnackLeftovers === 0 || longLastingFoodChoice !== null, "Nepasirinkta, ką daryti su ilgai išliekančiu maistu.");
+    assert(remainingMoney === 0 || moneyChoice !== null, "Nepasirinkta, ką daryti su likusiais pinigais.");
+
+    const nextResources: CarryoverResource[] = [];
+    const source = { kind: "celebration-leftover", celebrationNumber } as const;
+    if (moneyChoice === "kitai-sventei" && remainingMoney > 0) {
+      nextResources.push({ id: globalThis.crypto.randomUUID(), kind: "money", amount: remainingMoney, source });
+    }
+    if (longLastingFoodChoice === "pasilikti-kitai-sventei" && plan.longLastingSnackLeftovers > 0) {
+      nextResources.push({
+        id: globalThis.crypto.randomUUID(),
+        kind: "long-lasting-snack-portions",
+        amount: plan.longLastingSnackLeftovers,
+        source,
+      });
+    }
+
+    setCarryoverResources(nextResources);
+    setCelebrationNumber((current) => current + 1);
+    setSelection([]);
+    setCategory("gerimai");
+    setProblems([]);
+    setReserve(mode.suggestedReserve);
+    setActiveEvents([]);
+    setRevealedEventIds([]);
+    setOverlay(null);
+    resetCompletionChoices();
   }
 
   function returnHome() {
     setScreen("start");
     setModeId("paprasta");
-    setSelection({});
+    setSelection([]);
     setProblems([]);
     setActiveEvents([]);
-    setActiveChallenges([]);
+    setRevealedEventIds([]);
+    setCarryoverResources([]);
+    setCelebrationNumber(1);
     setBaseParticipants(undefined);
     setOverlay(null);
-    setLeftoverChoice(null);
+    resetCompletionChoices();
   }
 
   async function toggleFullscreen() {
@@ -146,14 +204,16 @@ export function App() {
           selection={selection}
           category={category}
           problems={problems}
-          activeEventCount={activeEvents.length}
-          activeChallengeCount={activeChallenges.length}
+          activeEvents={activeEvents}
+          revealedEventIds={revealedEventIds}
           onCategory={setCategory}
           onQuantity={changeQuantity}
+          onRemoveAt={removeItemAt}
           onReserve={changeReserve}
           onOpenEvents={() => setOverlay("events")}
           onOpenChallenges={() => setOverlay("challenges")}
           onOpenParticipants={() => setOverlay("participants")}
+          onDismissProblems={() => setProblems([])}
           onCheck={checkPlan}
           onHome={returnHome}
           onHelp={() => setOverlay("help")}
@@ -166,11 +226,8 @@ export function App() {
         <EventDialog
           mode={mode}
           activeEvents={activeEvents}
+          revealedEventIds={revealedEventIds}
           onToggle={toggleEvent}
-          onClear={() => {
-            invalidateCompletion();
-            setActiveEvents([]);
-          }}
           onClose={() => setOverlay(null)}
         />
       )}
@@ -179,9 +236,6 @@ export function App() {
           mode={mode}
           plan={plan}
           selection={selection}
-          activeChallenges={activeChallenges}
-          onToggle={toggleChallenge}
-          onClear={() => setActiveChallenges([])}
           onClose={() => setOverlay(null)}
         />
       )}
@@ -195,13 +249,14 @@ export function App() {
       )}
       {overlay === "completion" && (
         <CompletionDialog
-          mode={mode}
           plan={plan}
-          activeEvents={activeEvents}
-          activeChallenges={activeChallenges}
-          selection={selection}
-          choice={leftoverChoice}
-          onChoice={setLeftoverChoice}
+          spoilingFoodChoice={spoilingFoodChoice}
+          longLastingFoodChoice={longLastingFoodChoice}
+          moneyChoice={moneyChoice}
+          onSpoilingFoodChoice={setSpoilingFoodChoice}
+          onLongLastingFoodChoice={setLongLastingFoodChoice}
+          onMoneyChoice={setMoneyChoice}
+          onNewCelebration={organizeNewCelebration}
           onContinue={() => setOverlay(null)}
         />
       )}

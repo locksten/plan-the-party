@@ -7,6 +7,7 @@ export type BeginDrag = (
   event: ReactPointerEvent<HTMLElement>,
   item: GameItem,
   source: DragSource,
+  selectionIndex?: number,
 ) => void;
 
 export type DragPointerHandler = (event: ReactPointerEvent<HTMLElement>) => void;
@@ -14,6 +15,7 @@ export type DragPointerHandler = (event: ReactPointerEvent<HTMLElement>) => void
 export type ActiveDrag = {
   item: GameItem;
   source: DragSource;
+  selectionIndex?: number;
   pointerId: number;
   startX: number;
   startY: number;

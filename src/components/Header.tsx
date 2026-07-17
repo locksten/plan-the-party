@@ -13,7 +13,7 @@ export function Header({ onHome, onHelp, onFullscreen }: HeaderProps) {
         <span className="grid size-10 place-items-center rounded-full border-[3px] border-navy bg-yellow text-xl font-black" aria-hidden="true">€</span>
         <span className="flex flex-col">
           <strong className="text-lg leading-none">Šventės iššūkis</strong>
-          <small className="mt-1 font-sans text-[10px] font-bold text-muted">Klasės biudžeto žaidimas</small>
+          <small className="mt-1 text-[10px] font-bold text-muted">Klasės biudžeto žaidimas</small>
         </span>
       </button>
       <div className="flex gap-2">
