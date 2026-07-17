@@ -20,6 +20,11 @@ const CATEGORIES: ReadonlyArray<{ id: CategoryId; label: string }> = [
   { id: "veikla", label: "Veikla" },
   { id: "papildomai", label: "Papildomai" },
 ];
+const MODE_VISUALS: Record<ModeId, { action: string; detail: string }> = {
+  paprasta: { action: "Rinkis", detail: "Ko reikia šventei?" },
+  iprasta: { action: "Skaičiuok", detail: "Ar užteks visiems?" },
+  issukis: { action: "Reaguok", detail: "Kas nutiks planui?" },
+};
 const formatEuros = (value: number) => `${value} €`;
 
 export function App() {
@@ -125,7 +130,7 @@ function Header({ inGame, onHome, onHelp, onFullscreen }: {
     <header className="site-header">
       <button className="brand" type="button" onClick={onHome} aria-label="Grįžti į pradžią">
         <span className="brand-mark" aria-hidden="true">€</span>
-        <span><strong>Klasės finansai</strong><small>Sprendžiame kartu</small></span>
+        <span><strong>Šventės iššūkis</strong><small>Klasės biudžeto žaidimas</small></span>
       </button>
       <div className="header-actions">
         {inGame && <button className="text-button" type="button" onClick={onHome}>Baigti žaidimą</button>}
@@ -141,32 +146,33 @@ function StartScreen({ onStart }: { onStart: (modeId: ModeId) => void }) {
     <main className="start-screen">
       <section className="start-intro">
         <div>
-          <p className="eyebrow">Bendras klasės žaidimas</p>
-          <h1>Suplanuokite klasės šventę</h1>
-          <p className="lead">Turite ribotą biudžetą. Susitarkite, ką pirkti, kad užtektų visiems ir liktų pinigų netikėtumams.</p>
+          <p className="eyebrow">Misija visai klasei</p>
+          <h1>Surenkite šventę.<br /><span>Neviršykite biudžeto!</span></h1>
+          <p className="lead">Tarkitės, balsuokite ir sukurkite planą, kuris tiks visai klasei.</p>
         </div>
         <div className="how-it-works" aria-label="Trys žaidimo žingsniai">
-          <div><span>1</span><p><strong>Aptarkite</strong> pasirinkimus komandomis.</p></div>
-          <div><span>2</span><p><strong>Balsuokite</strong> ir sudėkite bendrą planą.</p></div>
-          <div><span>3</span><p><strong>Patikrinkite</strong> ir paaiškinkite sprendimą.</p></div>
+          <div><span>1</span><p><strong>Tarkitės</strong><small>komandomis</small></p></div>
+          <div><span>2</span><p><strong>Balsuokite</strong><small>už pasirinkimą</small></p></div>
+          <div><span>3</span><p><strong>Tikrinkite</strong><small>klasės planą</small></p></div>
         </div>
       </section>
       <section className="mode-section" aria-labelledby="mode-heading">
         <div className="section-heading">
-          <div><p className="eyebrow">Mokytojui</p><h2 id="mode-heading">Pasirinkite sudėtingumą</h2></div>
-          <p>Vienas ekranas visai klasei. Be laikmačio ir taškų.</p>
+          <div><p className="eyebrow">Pasiruošę?</p><h2 id="mode-heading">Pasirinkite lygį</h2></div>
+          <p>Mokytojas valdo žaidimą, klasė priima sprendimus.</p>
         </div>
         <div className="mode-grid">
           {MODES.map((mode, index) => (
             <article className={`mode-card mode-card-${mode.id}`} key={mode.id}>
-              <div className="mode-card-top"><span className="mode-number">0{index + 1}</span><span className="duration">{mode.duration}</span></div>
+              <div className="mode-card-top"><span className="mode-number">{index + 1} lygis</span><span className="duration">{mode.duration}</span></div>
+              <div className="mode-visual" aria-hidden="true"><span>{MODE_VISUALS[mode.id].action}</span><strong>{MODE_VISUALS[mode.id].detail}</strong></div>
               <p className="grade-label">{mode.grades}</p>
               <h3>{mode.title}</h3><p>{mode.summary}</p>
               <dl className="mode-facts">
                 <div><dt>Biudžetas</dt><dd>{formatEuros(mode.budget)}</dd></div>
                 <div><dt>Rezervas</dt><dd>{formatEuros(mode.reserve)}</dd></div>
               </dl>
-              <button className="primary-button" type="button" onClick={() => onStart(mode.id)}>Pradėti</button>
+              <button className="primary-button" type="button" onClick={() => onStart(mode.id)}>Žaisti</button>
             </article>
           ))}
         </div>
@@ -189,7 +195,7 @@ function PlanScreen({ mode, selection, category, problems, surpriseRevealed, onC
     <main className="game-screen">
       <section className={`mission-strip ${surpriseRevealed ? "mission-strip-alert" : ""}`}>
         <div>
-          <p className="eyebrow">{surpriseRevealed ? "Planai pasikeitė" : mode.grades}</p>
+          <p className="eyebrow">{surpriseRevealed ? "Netikėtas įvykis!" : `Misija · ${mode.grades}`}</p>
           <h1>{surpriseRevealed ? `Dabar dalyvaus ${people} mokiniai` : mode.title}</h1>
           <p>{surpriseRevealed
             ? `Prisijungė ${mode.surpriseGuests} svečiai. Papildykite planą neviršydami biudžeto.`
@@ -207,8 +213,8 @@ function PlanScreen({ mode, selection, category, problems, surpriseRevealed, onC
       <div className="game-layout">
         <section className="shop-panel" aria-labelledby="shop-heading">
           <div className="panel-heading">
-            <div><p className="step-label">1 žingsnis</p><h2 id="shop-heading">Sudėkite planą</h2></div>
-            <p>Aptarkite, tada spauskite pasirinkimą.</p>
+            <div><p className="step-label">Rinkitės</p><h2 id="shop-heading">Šventės parduotuvė</h2></div>
+            <p>Pirma aptarkite, tada spauskite.</p>
           </div>
           <div className="category-tabs" role="tablist" aria-label="Pasirinkimų grupės">
             {CATEGORIES.map((item) => {
@@ -225,7 +231,7 @@ function PlanScreen({ mode, selection, category, problems, surpriseRevealed, onC
           </div>
         </section>
         <aside className="plan-panel" aria-labelledby="plan-heading">
-          <div className="panel-heading compact"><div><p className="step-label">2 žingsnis</p><h2 id="plan-heading">Klasės planas</h2></div></div>
+          <div className="panel-heading compact"><div><p className="step-label">Jūsų komanda</p><h2 id="plan-heading">Klasės planas</h2></div></div>
           <Requirements mode={mode} selection={selection} surpriseRevealed={surpriseRevealed} />
           {problems.length > 0 && <div className="feedback-box" role="alert"><strong>Planą dar pataisykite</strong><ul>{problems.map((problem) => <li key={problem}>{problem}</li>)}</ul></div>}
           <div className="receipt">
@@ -252,8 +258,8 @@ function ItemCard({ item, quantity, allowMultiple, onChange }: {
 }) {
   const selected = quantity > 0;
   return (
-    <article className={`item-card ${selected ? "selected" : ""}`}>
-      <div className="item-placeholder" aria-hidden="true">{item.name}</div>
+    <article className={`item-card item-${item.category} ${selected ? "selected" : ""}`}>
+      <div className="item-placeholder" aria-hidden="true"><span>{item.name}</span></div>
       <div className="item-copy"><div><p>{item.note}</p><h3>{item.name}</h3></div><strong className="item-price">{formatEuros(item.price)}</strong></div>
       {allowMultiple && selected ? (
         <div className="quantity-control" aria-label={`${item.name} kiekis`}>
@@ -306,7 +312,7 @@ function ResultScreen({ mode, plan, comparison, surpriseRevealed, onRetry, onHom
 }) {
   return <main className="result-screen">
     <section className="result-summary">
-      <p className="eyebrow">Planas pavyko</p><h1>Šventė suplanuota</h1>
+      <p className="eyebrow">Misija įvykdyta!</p><h1>Šventė suplanuota</h1>
       <p className="lead">{surpriseRevealed ? "Prisitaikėte prie netikėtumo ir neviršijote biudžeto." : "Susitarimus įvykdėte ir neviršijote biudžeto."}</p>
       <div className="result-numbers">
         <div><span>Biudžetas</span><strong>{formatEuros(mode.budget)}</strong></div><div><span>Išleista</span><strong>{formatEuros(plan.spent)}</strong></div><div><span>Liko</span><strong>{formatEuros(plan.remaining)}</strong></div>
@@ -314,12 +320,12 @@ function ResultScreen({ mode, plan, comparison, surpriseRevealed, onRetry, onHom
       <div className="final-plan"><h2>Jūsų planas</h2><p>{plan.itemNames.join(" · ")}</p></div>
     </section>
     <section className="debrief-panel">
-      <p className="step-label">3 žingsnis</p><h2>Aptarkite sprendimą</h2>
+      <p className="step-label">Paskutinis etapas</p><h2>Aptarkite sprendimą</h2>
       <ol>{mode.reflection.map((question) => <li key={question}>{question}</li>)}</ol>
       {comparison !== null && <div className="comparison-box"><h3>Palyginkite du tinkamus planus</h3><div>
         <p><span>Pirmas planas</span><strong>Išleista {formatEuros(comparison.spent)}</strong></p><p><span>Antras planas</span><strong>Išleista {formatEuros(plan.spent)}</strong></p>
       </div><p>Kuris planas klasei tinkamesnis? Vien kainos atsakymui neužtenka.</p></div>}
-      <div className="result-actions"><button className="primary-button" type="button" onClick={onRetry}>Kurti kitą planą</button><button className="secondary-button" type="button" onClick={onHome}>Rinktis kitą užduotį</button></div>
+      <div className="result-actions"><button className="primary-button" type="button" onClick={onRetry}>Žaisti dar kartą</button><button className="secondary-button" type="button" onClick={onHome}>Rinktis kitą lygį</button></div>
     </section>
   </main>;
 }
