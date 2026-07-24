@@ -26,34 +26,34 @@ import type { ChallengeId, EventId } from "./domain";
 import type { DiscussionId } from "./discussions";
 
 export const CHALLENGE_ART_SOURCES = {
-  "tiek-kiek-reikia": cardsChallengesTiekKiekReikiaV7Source,
-  "ivairove-ant-stalo": cardsChallengesIvairoveAntStaloV3Source,
-  "tobula-pusiausvyra": cardsChallengesTobulaPusiausvyraV5Source,
-  "ir-smagu-ir-taupu": cardsChallengesIrSmaguIrTaupuV3Source,
-  "pravers-ir-rytoj": cardsChallengesPraversIrRytojV3Source,
-  "vienas-brangesnis-pirkinys": cardsChallengesVienasBrangesnisPirkinysV3Source,
-  "vaises-po-eura-kiekvienam": cardsChallengesVaisesPoEuraKiekvienamV3Source,
-  "vienas-ryskus-ar-keli-paprasti": cardsChallengesVienasRyskusArKeliPaprastiV6Source,
+  "just-enough": cardsChallengesTiekKiekReikiaV7Source,
+  "table-variety": cardsChallengesIvairoveAntStaloV3Source,
+  "perfect-balance": cardsChallengesTobulaPusiausvyraV5Source,
+  "fun-and-frugal": cardsChallengesIrSmaguIrTaupuV3Source,
+  "useful-tomorrow": cardsChallengesPraversIrRytojV3Source,
+  "one-expensive-purchase": cardsChallengesVienasBrangesnisPirkinysV3Source,
+  "one-euro-refreshments": cardsChallengesVaisesPoEuraKiekvienamV3Source,
+  "one-bold-or-several-simple": cardsChallengesVienasRyskusArKeliPaprastiV6Source,
 } as const satisfies Readonly<Record<ChallengeId, string>>;
 
 export const EVENT_ART_SOURCES = {
-  "mokyklos-fotografas": cardsEventsMokyklosFotografasV2Source,
-  "svente-uzsites": cardsEventsSventeUzsitesV2Source,
-  "reklama-pabrango": cardsEventsReklamaPabrangoV2Source,
-  issiliejo: cardsEventsIssiliejoV2Source,
-  "naminiai-uzkandziai": cardsEventsNaminiaiUzkandziaiSource,
-  "pamirsome-puodelius": cardsEventsPamirsomePuodeliusVariant4Source,
-  "prisijungia-draugai": cardsEventsPrisijungiaDraugaiSource,
-  "pasiskolinome-masineles": cardsEventsPasiskolinomeMasinelesSource,
+  "school-photographer": cardsEventsMokyklosFotografasV2Source,
+  "party-runs-long": cardsEventsSventeUzsitesV2Source,
+  "advertised-items-cost-more": cardsEventsReklamaPabrangoV2Source,
+  "spilled-drink": cardsEventsIssiliejoV2Source,
+  "homemade-snacks": cardsEventsNaminiaiUzkandziaiSource,
+  "forgot-cups": cardsEventsPamirsomePuodeliusVariant4Source,
+  "friends-join": cardsEventsPrisijungiaDraugaiSource,
+  "borrowed-rc-cars": cardsEventsPasiskolinomeMasinelesSource,
 } as const satisfies Readonly<Record<EventId, string>>;
 
 export const DISCUSSION_ART_SOURCES = {
-  "ko-atsisakytume": cardsDiscussionsKoAtsisakytumeSource,
-  "brangiausia-geriausia": cardsDiscussionsBrangiausiaGeriausiaSource,
-  "kiek-pinigu-palikti": cardsDiscussionsKiekPiniguPaliktiSource,
-  "reikia-ar-norime": cardsDiscussionsReikiaArNorimeSource,
-  "daugiau-ar-ivairiau": cardsDiscussionsDaugiauArIvairiauSource,
-  "kaip-susitarti": cardsDiscussionsKaipSusitartiSource,
-  "daugiau-pinigu-geresne-svente": cardsDiscussionsDaugiauPiniguGeresneSventeSource,
-  "kas-svarbu-be-kainos": cardsDiscussionsKasSvarbuBeKainosSource,
+  "what-to-give-up": cardsDiscussionsKoAtsisakytumeSource,
+  "same-price-same-choice": cardsDiscussionsBrangiausiaGeriausiaSource,
+  "now-or-next-party": cardsDiscussionsKiekPiniguPaliktiSource,
+  "needs-or-wants": cardsDiscussionsReikiaArNorimeSource,
+  "more-or-varied": cardsDiscussionsDaugiauArIvairiauSource,
+  "how-to-agree": cardsDiscussionsKaipSusitartiSource,
+  "more-money-better-party": cardsDiscussionsDaugiauPiniguGeresneSventeSource,
+  "beyond-price": cardsDiscussionsKasSvarbuBeKainosSource,
 } as const satisfies Readonly<Record<DiscussionId, string>>;

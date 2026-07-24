@@ -63,7 +63,7 @@ export function PlanScreen({ view, actions }: { view: PlanScreenView; actions: P
         onFullscreen={actions.onFullscreen}
       />
       <ScreenDecorations selectedItemIds={selectedItemIds} />
-      {selectedItemIds.has("popieriniu-lektuveliu-dirbtuves") && <PaperAirplaneFlyby />}
+      {selectedItemIds.has("paper-airplane-challenge") && <PaperAirplaneFlyby />}
 
       <div className="grid min-h-0 grid-cols-[clamp(20.625rem,26vw,24.375rem)_minmax(0,1fr)] gap-3.5">
         <SupplyShelf

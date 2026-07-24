@@ -6,8 +6,8 @@ const FABRIC_BUNTING_SOURCE = sceneFabricBuntingSource;
 const FABRIC_BUNTING_REPEATS = 5;
 
 export function ScreenDecorations({ selectedItemIds }: { selectedItemIds: ReadonlySet<ItemId> }) {
-  const hasBunting = selectedItemIds.has("veliaveles");
-  const hasBalloons = selectedItemIds.has("balionai");
+  const hasBunting = selectedItemIds.has("fabric-bunting");
+  const hasBalloons = selectedItemIds.has("balloons");
   if (!hasBunting && !hasBalloons) return null;
 
   return (

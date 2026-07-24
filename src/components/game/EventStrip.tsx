@@ -1,6 +1,7 @@
 import { EVENT_ART_SOURCES } from "../../cardArt";
 import { EVENTS, type EventId } from "../../domain";
 import { classes } from "../../ui";
+import { useI18n } from "../../i18n/I18nProvider";
 
 type EventStripProps = {
   activeEventIds: readonly EventId[];
@@ -10,17 +11,18 @@ type EventStripProps = {
 };
 
 export function EventStrip({ activeEventIds, revealedEventIds, attention, onOpen }: EventStripProps) {
+  const { translations } = useI18n();
   return (
     <button
       className="grid h-10 w-full grid-cols-8 items-center rounded-lg outline-none focus-visible:outline-[0.25rem] focus-visible:outline-yellow active:translate-y-0.5"
       type="button"
       onClick={onOpen}
-      aria-label={`Atverti netikėtus įvykius. Atverta ${revealedEventIds.length} iš ${EVENTS.length}, įjungta ${activeEventIds.length}.`}
+      aria-label={translations.events.openWithStatus(revealedEventIds.length, EVENTS.length, activeEventIds.length)}
     >
       {EVENTS.map((event, index) => {
         const isRevealed = revealedEventIds.includes(event.id);
         const isActive = activeEventIds.includes(event.id);
-        const status = isActive ? "įjungtas" : "išjungtas";
+        const status = isActive ? translations.events.active : translations.events.inactive;
 
         return (
           <span
@@ -29,7 +31,7 @@ export function EventStrip({ activeEventIds, revealedEventIds, attention, onOpen
               "grid h-10 min-w-0 place-items-center",
               attention && index === 0 && "event-icon-bounce",
             )}
-            title={isRevealed ? `${event.title} — ${status}` : "Neatverstas įvykis"}
+            title={isRevealed ? `${translations.eventCards[event.id].title} — ${status}` : translations.events.unrevealed}
           >
             {isRevealed ? (
               <img

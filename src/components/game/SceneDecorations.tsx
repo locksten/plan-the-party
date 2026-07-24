@@ -10,9 +10,9 @@ type SceneDecorationsProps = {
 };
 
 export function SceneDecorations({ selectedItemIds, plantGrowth, compostBinOwned }: SceneDecorationsProps) {
-  const showsPaperGarland = selectedItemIds.has("popieriniu-kutu-girlianda");
+  const showsPaperGarland = selectedItemIds.has("paper-tassel-garland");
   const plantSource = PLANT_STAGE_SOURCES[plantGrowth];
-  assert(plantSource !== undefined, `Nežinomas augalo augimo etapas „${plantGrowth}“.`);
+  assert(plantSource !== undefined, `Unknown plant growth stage "${plantGrowth}".`);
   const plantClassName = "layer-plant absolute bottom-0 right-[-2.5rem] aspect-[368/903] translate-x-[18%]";
   const plantStyle = { height: "clamp(30rem, 78vh, 52rem)" } as const;
   const plantImage = <img className="size-full object-contain object-bottom" src={plantSource} alt="" draggable={false} />;

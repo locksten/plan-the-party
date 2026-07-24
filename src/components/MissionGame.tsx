@@ -7,8 +7,8 @@ import { SettingsDialog } from "./dialogs/SettingsDialog";
 import { PlanScreen } from "./game/PlanScreen";
 import type { CategoryId } from "../domain";
 import { saveMission, type ActiveMission } from "../missionStorage";
-import { formatPlanProblem } from "../ui";
 import { useGameSession } from "../useGameSession";
+import { useI18n } from "../i18n/I18nProvider";
 
 type Overlay =
   | "help"
@@ -28,7 +28,8 @@ type MissionGameProps = Readonly<{
 }>;
 
 export function MissionGame({ mission, onHome, onFullscreen }: MissionGameProps) {
-  const [category, setCategory] = useState<CategoryId>("gerimai");
+  const { translations } = useI18n();
+  const [category, setCategory] = useState<CategoryId>("drinks");
   const [overlay, setOverlay] = useState<Overlay | null>(null);
   const gameSession = useGameSession(mission.state);
   const {
@@ -41,7 +42,7 @@ export function MissionGame({ mission, onHome, onFullscreen }: MissionGameProps)
     actions,
     limits,
   } = gameSession;
-  const problems = gameSession.visibleProblems.map(formatPlanProblem);
+  const problems = gameSession.visibleProblems.map(translations.planProblem);
 
   useEffect(() => {
     if (missionState === mission.state) return;
@@ -72,7 +73,7 @@ export function MissionGame({ mission, onHome, onFullscreen }: MissionGameProps)
 
   function organizeNextCelebration() {
     actions.organizeNextCelebration();
-    setCategory("gerimai");
+    setCategory("drinks");
     setOverlay(null);
   }
 

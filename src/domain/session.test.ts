@@ -64,22 +64,22 @@ describe("session transitions", () => {
   });
 
   it("limits food and drinks to six placements per category", () => {
-    const session = addMany(createGameSession(), "vandens-stotele", 8);
+    const session = addMany(createGameSession(), "water-station", 8);
 
     expect(session.round.selection).toHaveLength(6);
     expect(session.round.nextPlacementId).toBe(7);
   });
 
   it("allows activities and decorations only once", () => {
-    let session = addMany(createGameSession(), "viktorina", 3);
-    session = addMany(session, "staltiese", 3);
+    let session = addMany(createGameSession(), "quiz", 3);
+    session = addMany(session, "tablecloth", 3);
 
-    expect(session.round.selection.map((entry) => entry.itemId)).toEqual(["viktorina", "staltiese"]);
+    expect(session.round.selection.map((entry) => entry.itemId)).toEqual(["quiz", "tablecloth"]);
   });
 
   it("assigns an owned shopping card to paid items in every category", () => {
     const withoutCard = createGameSession();
-    expect(() => toggleShoppingCardDiscount(withoutCard, "vandens-stotele")).toThrow("įsigijus");
+    expect(() => toggleShoppingCardDiscount(withoutCard, "water-station")).toThrow("after it has been unlocked");
 
     const withCard = {
       ...withoutCard,
@@ -88,7 +88,7 @@ describe("session transitions", () => {
         projectProgress: { ...withoutCard.campaign.projectProgress, "shopping-card": 10 },
       },
     };
-    for (const itemId of ["arbatos-rinkinys", "darzoviu-lazdeles", "popieriniu-lektuveliu-dirbtuves", "staltiese"] as const) {
+    for (const itemId of ["tea-set", "vegetable-sticks", "paper-airplane-challenge", "tablecloth"] as const) {
       const discounted = toggleShoppingCardDiscount(withCard, itemId);
       expect(discounted.round.shoppingCardItemId).toBe(itemId);
       expect(deriveGameView(discounted).game.items.find((item) => item.id === itemId)).toMatchObject({
@@ -96,18 +96,18 @@ describe("session transitions", () => {
         shoppingCardDiscount: 2,
       });
     }
-    expect(() => toggleShoppingCardDiscount(withCard, "viktorina")).toThrow("mokamai prekei");
+    expect(() => toggleShoppingCardDiscount(withCard, "quiz")).toThrow("paid item");
 
-    const discountedWater = toggleShoppingCardDiscount(withCard, "vandens-stotele");
-    expect(deriveGameView(discountedWater).game.items.find((item) => item.id === "vandens-stotele")).toMatchObject({
+    const discountedWater = toggleShoppingCardDiscount(withCard, "water-station");
+    expect(deriveGameView(discountedWater).game.items.find((item) => item.id === "water-station")).toMatchObject({
       price: 0,
       shoppingCardDiscount: 1,
     });
 
-    const discounted = toggleShoppingCardDiscount(withCard, "arbatos-rinkinys");
-    const restored = toggleShoppingCardDiscount(discounted, "arbatos-rinkinys");
+    const discounted = toggleShoppingCardDiscount(withCard, "tea-set");
+    const restored = toggleShoppingCardDiscount(discounted, "tea-set");
     expect(restored.round.shoppingCardItemId).toBeNull();
-    expect(deriveGameView(restored).game.items.find((item) => item.id === "arbatos-rinkinys")).not.toHaveProperty("shoppingCardDiscount");
+    expect(deriveGameView(restored).game.items.find((item) => item.id === "tea-set")).not.toHaveProperty("shoppingCardDiscount");
   });
 
   it("returns the shopping card when an event makes its target free", () => {
@@ -119,17 +119,17 @@ describe("session transitions", () => {
         projectProgress: { ...base.campaign.projectProgress, "shopping-card": 10 },
       },
     };
-    const assigned = toggleShoppingCardDiscount(withCard, "valdomu-automobiliuku-trasa");
-    const borrowed = toggleEvent(assigned, "pasiskolinome-masineles");
+    const assigned = toggleShoppingCardDiscount(withCard, "rc-car-racing");
+    const borrowed = toggleEvent(assigned, "borrowed-rc-cars");
 
     expect(borrowed.round.shoppingCardItemId).toBeNull();
-    expect(deriveGameView(borrowed).game.items.find((item) => item.id === "valdomu-automobiliuku-trasa")).toMatchObject({ price: 0 });
+    expect(deriveGameView(borrowed).game.items.find((item) => item.id === "rc-car-racing")).toMatchObject({ price: 0 });
   });
 
   it("allows only one self-made choice", () => {
     for (const [first, blocked] of [
-      ["viktorina", "popieriniu-kutu-girlianda"],
-      ["popieriniu-kutu-girlianda", "viktorina"],
+      ["quiz", "paper-tassel-garland"],
+      ["paper-tassel-garland", "quiz"],
     ] as const) {
       const session = addItem(addItem(createGameSession(), first), blocked);
       const view = deriveGameView(session);
@@ -137,16 +137,16 @@ describe("session transitions", () => {
 
       expect(session.round.selection.map((entry) => entry.itemId)).toEqual([first]);
       expect(view.addableItemIds.has(blocked)).toBe(false);
-      expect(blockedItem?.tags?.map((tag) => tag.label)).toEqual(["NELIKO LAIKO"]);
+      expect(blockedItem?.tags).toEqual([{ kind: "no-time" }]);
     }
   });
 
   it("carries durable food, ownership and project progress into the next celebration", () => {
     let session = create24ParticipantSession();
-    session = addMany(session, "vandens-stotele", 3);
-    session = addMany(session, "krekeriu-pakeliai", 5);
-    session = addItem(session, "viktorina");
-    session = addItem(session, "veliaveles");
+    session = addMany(session, "water-station", 3);
+    session = addMany(session, "cracker-packets", 5);
+    session = addItem(session, "quiz");
+    session = addItem(session, "fabric-bunting");
     const allocation = {
       ...emptyMoneyAllocation(),
       projectAmounts: { ...emptyMoneyAllocation().projectAmounts, "large-celebration": 5 },
@@ -155,7 +155,7 @@ describe("session transitions", () => {
     expect(deriveGameView(session).problems).toEqual([]);
     const next = advanceCelebration(session, {
       spoilingFoodChoice: null,
-      longLastingFoodChoice: "pasilikti-kitai-sventei",
+      longLastingFoodChoice: "keep-for-next-party",
       moneyAllocation: allocation,
     });
 
@@ -163,7 +163,7 @@ describe("session transitions", () => {
     expect(next.campaign.carryoverResources).toEqual([
       { kind: "long-lasting-snack-portions", amount: 6, sourceCelebration: 1 },
     ]);
-    expect(next.campaign.ownedReusableItemIds).toContain("veliaveles");
+    expect(next.campaign.ownedReusableItemIds).toContain("fabric-bunting");
     expect(next.campaign.projectProgress["large-celebration"]).toBe(5);
     expect(next.round.selection).toEqual([]);
     expect(next.round.shoppingCardItemId).toBeNull();
@@ -196,9 +196,9 @@ describe("session transitions", () => {
 
   it("turns a completed large-celebration fund into the next scenario", () => {
     let session = create24ParticipantSession();
-    session = addMany(session, "vandens-stotele", 3);
-    session = addMany(session, "mini-sumustiniai", 3);
-    session = addItem(session, "viktorina");
+    session = addMany(session, "water-station", 3);
+    session = addMany(session, "mini-sandwiches", 3);
+    session = addItem(session, "quiz");
     session = {
       ...session,
       campaign: {
@@ -221,9 +221,9 @@ describe("session transitions", () => {
 
   it("grows the plant twice when crumbs are composted and fertilizer is bought", () => {
     let session = create24ParticipantSession();
-    session = addMany(session, "vandens-stotele", 3);
-    session = addMany(session, "darzoviu-lazdeles", 6);
-    session = addItem(session, "viktorina");
+    session = addMany(session, "water-station", 3);
+    session = addMany(session, "vegetable-sticks", 6);
+    session = addItem(session, "quiz");
     session = {
       ...session,
       campaign: {
@@ -244,7 +244,7 @@ describe("session transitions", () => {
     expect(moneyAllocationTotal(view.game, allocation)).toBe(3);
 
     const next = advanceCelebration(session, {
-      spoilingFoodChoice: "kompostuoti",
+      spoilingFoodChoice: "compost",
       longLastingFoodChoice: null,
       moneyAllocation: allocation,
     });
@@ -254,9 +254,9 @@ describe("session transitions", () => {
 
   it("does not allow composting when the celebration had no spoiling food", () => {
     let session = create24ParticipantSession();
-    session = addMany(session, "vandens-stotele", 3);
-    session = addMany(session, "krekeriu-pakeliai", 5);
-    session = addItem(session, "viktorina");
+    session = addMany(session, "water-station", 3);
+    session = addMany(session, "cracker-packets", 5);
+    session = addItem(session, "quiz");
     session = {
       ...session,
       campaign: {
@@ -266,17 +266,17 @@ describe("session transitions", () => {
     };
 
     expect(() => advanceCelebration(session, {
-      spoilingFoodChoice: "kompostuoti",
+      spoilingFoodChoice: "compost",
       longLastingFoodChoice: null,
       moneyAllocation: emptyMoneyAllocation(),
-    })).toThrow("Nėra gendančio maisto");
+    })).toThrow("There is no spoiling food");
   });
 
   it("allows compost and fertilizer after the plant is fully grown", () => {
     let session = create24ParticipantSession();
-    session = addMany(session, "vandens-stotele", 3);
-    session = addMany(session, "darzoviu-lazdeles", 6);
-    session = addItem(session, "viktorina");
+    session = addMany(session, "water-station", 3);
+    session = addMany(session, "vegetable-sticks", 6);
+    session = addItem(session, "quiz");
     session = {
       ...session,
       campaign: {
@@ -288,7 +288,7 @@ describe("session transitions", () => {
 
     const allocation = toggleFertilizerAllocation(session, emptyMoneyAllocation());
     const next = advanceCelebration(session, {
-      spoilingFoodChoice: "kompostuoti",
+      spoilingFoodChoice: "compost",
       longLastingFoodChoice: null,
       moneyAllocation: allocation,
     });
@@ -308,13 +308,13 @@ describe("session transitions", () => {
       campaign: { ...session.campaign, plantGrowth: 2 },
     });
 
-    expect(atSecondStage.game.items.find((item) => item.id === "klases-augalas")).toMatchObject({
+    expect(atSecondStage.game.items.find((item) => item.id === "plant")).toMatchObject({
       locked: true,
-      tags: [{ label: "KANTRYBĖS" }],
+      tags: [{ kind: "patience" }],
     });
-    expect(atThirdStage.game.items.find((item) => item.id === "klases-augalas")).toMatchObject({
+    expect(atThirdStage.game.items.find((item) => item.id === "plant")).toMatchObject({
       locked: false,
-      tags: [{ label: "KANTRYBĖ ATSIPIRKO!" }],
+      tags: [{ kind: "patience-paid-off" }],
     });
   });
 });

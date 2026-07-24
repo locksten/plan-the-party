@@ -5,6 +5,7 @@ import { classes } from "../../ui";
 import { useAutoAnimateRef } from "../../useAutoAnimateRef";
 import { IconButton } from "../ui/IconButton";
 import { CardBoardDialog } from "./DialogShell";
+import { useI18n } from "../../i18n/I18nProvider";
 
 export type FlipCardData<Id extends string = string> = Readonly<{
   id: Id;
@@ -52,19 +53,20 @@ export function FlipCardDialog<Card extends FlipCardData>({
   colorScheme,
   readOnly = false,
 }: FlipCardDialogProps<Card>) {
+  const { translations } = useI18n();
   const [cardOrder, setCardOrder] = useState<readonly Card["id"][]>(() => cards.map((card) => card.id));
   const [focusedCard, setFocusedCard] = useState<FocusedFlipCard | null>(null);
   const cardBoardRef = useAutoAnimateRef<HTMLDivElement>({ duration: 420, easing: "ease-in-out" });
   const focusedOverlayRef = useRef<HTMLButtonElement>(null);
   const cardRefs = useRef(new Map<string, HTMLButtonElement>());
 
-  assert(readOnly === (onReveal === undefined && onFaceUpClick === undefined && onFlipAll === undefined), "Peržiūros režimas negali turėti kortelių keitimo veiksmų.");
+  assert(readOnly === (onReveal === undefined && onFaceUpClick === undefined && onFlipAll === undefined), "Read-only mode must not provide card mutation actions.");
   const cardsById = new Map(cards.map((card) => [card.id, card]));
-  assert(cardsById.size === cards.length, "Kortelių ID turi būti unikalūs.");
-  assert(cardOrder.length === cards.length, "Kortelių tvarka turi apimti visas korteles.");
+  assert(cardsById.size === cards.length, "Card IDs must be unique.");
+  assert(cardOrder.length === cards.length, "The card order must contain every card.");
   const orderedCards = cardOrder.map((cardId) => {
     const card = cardsById.get(cardId);
-    assert(card !== undefined, `Kortelių tvarkoje yra nežinomas ID „${cardId}“.`);
+    assert(card !== undefined, `The card order contains unknown ID "${cardId}".`);
     return card;
   });
 
@@ -105,7 +107,7 @@ export function FlipCardDialog<Card extends FlipCardData>({
     }
 
     if (readOnly) return;
-    assert(onReveal !== undefined, "Redaguojamame kortelių lange turi būti atvertimo veiksmas.");
+    assert(onReveal !== undefined, "An editable card dialog must provide a reveal action.");
     focusCard(card, button, false);
     onReveal(card);
   }
@@ -116,7 +118,7 @@ export function FlipCardDialog<Card extends FlipCardData>({
 
   function shuffleCards() {
     setCardOrder((current) => {
-      assert(current.length > 1, "Maišymui reikia bent dviejų kortelių.");
+      assert(current.length > 1, "Shuffling requires at least two cards.");
       const shuffled = [...current];
       for (let index = shuffled.length - 1; index > 0; index -= 1) {
         const swapIndex = Math.floor(Math.random() * (index + 1));
@@ -124,7 +126,7 @@ export function FlipCardDialog<Card extends FlipCardData>({
       }
       if (shuffled.every((cardId, index) => cardId === current[index])) {
         const firstCardId = shuffled.shift();
-        assert(firstCardId !== undefined, "Maišomų kortelių sąrašas negali būti tuščias.");
+        assert(firstCardId !== undefined, "The shuffled card list must not be empty.");
         shuffled.push(firstCardId);
       }
       return shuffled;
@@ -134,7 +136,7 @@ export function FlipCardDialog<Card extends FlipCardData>({
   let focusedCardData: Card | null = null;
   if (focusedCard !== null) {
     const matchingCard = cardsById.get(focusedCard.cardId);
-    assert(matchingCard !== undefined, "Fokusuojama kortelė turi priklausyti lentai.");
+    assert(matchingCard !== undefined, "The focused card must belong to the board.");
     focusedCardData = matchingCard;
   }
 
@@ -153,7 +155,7 @@ export function FlipCardDialog<Card extends FlipCardData>({
             allFaceDown={allFaceDown}
             onShuffle={shuffleCards}
             onFlipAll={() => {
-              assert(onFlipAll !== undefined, "Redaguojamame kortelių lange turi būti visų kortelių atvertimo veiksmas.");
+              assert(onFlipAll !== undefined, "An editable card dialog must provide a flip-all action.");
               onFlipAll(allFaceDown);
             }}
           />
@@ -164,10 +166,10 @@ export function FlipCardDialog<Card extends FlipCardData>({
           const isActive = activeIds === undefined || activeIds.includes(card.id);
           const isFocused = focusedCard?.cardId === card.id;
           const actionLabel = !isRevealed && readOnly
-            ? "Neatversta kortelė"
+            ? translations.cardBoard.unrevealedCard
             : !isRevealed
-            ? "Atversti kortelę"
-            : faceUpActionLabel?.(card, isActive) ?? `${card.title}. Padidinti kortelę.`;
+            ? translations.cardBoard.revealCard
+            : faceUpActionLabel?.(card, isActive) ?? translations.cardBoard.enlargeCard(card.title);
 
           return (
             <div className="relative h-full min-h-0" key={card.id}>
@@ -275,13 +277,14 @@ type FocusedFlipCardOverlayProps = {
 };
 
 function FocusedFlipCardOverlay({ card, cardData, art, backArt, isActive, colorScheme, overlayRef, onDismiss }: FocusedFlipCardOverlayProps) {
+  const { translations } = useI18n();
   const viewportPadding = 40;
   const scale = Math.min(
     2.35,
     (window.innerWidth - viewportPadding * 2) / card.origin.width,
     (window.innerHeight - viewportPadding * 2) / card.origin.height,
   );
-  assert(scale >= 1, "Fokusuojamai įvykio kortelei ekrane neužtenka vietos.");
+  assert(scale >= 1, "The focused card does not fit on screen.");
   const targetLeft = (window.innerWidth - card.origin.width * scale) / 2;
   const targetTop = (window.innerHeight - card.origin.height * scale) / 2;
   const isExpanded = card.phase === "focused";
@@ -294,7 +297,7 @@ function FocusedFlipCardOverlay({ card, cardData, art, backArt, isActive, colorS
         !isExpanded && "bg-[#0b1429]/0",
       )}
       type="button"
-      aria-label={`${cardData.title}. Grąžinti kortelę į vietą.`}
+      aria-label={translations.cardBoard.returnCard(cardData.title)}
       onClick={onDismiss}
     >
       <span
@@ -322,10 +325,11 @@ function FocusedFlipCardOverlay({ card, cardData, art, backArt, isActive, colorS
 }
 
 function CardBoardActions({ allFaceDown, onShuffle, onFlipAll }: { allFaceDown: boolean; onShuffle: () => void; onFlipAll: () => void }) {
-  const flipLabel = allFaceDown ? "Atversti visas korteles" : "Užversti visas korteles";
+  const { translations } = useI18n();
+  const flipLabel = allFaceDown ? translations.cardBoard.revealAll : translations.cardBoard.turnAllDown;
   return (
     <>
-      <IconButton type="button" onClick={onShuffle} aria-label="Sumaišyti korteles" title="Sumaišyti korteles">
+      <IconButton type="button" onClick={onShuffle} aria-label={translations.cardBoard.shuffle} title={translations.cardBoard.shuffle}>
         <svg className="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <path d="M3 7h3c5 0 6 10 11 10h4" />
           <path d="m18 14 3 3-3 3M3 17h3c2.1 0 3.4-1.8 4.7-4M14 7c1-1.2 2-2 3-2h4" />

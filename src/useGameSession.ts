@@ -58,7 +58,7 @@ export function useGameSession(initialState: MissionState) {
   function removeItemAt(selectionIndex: number) {
     changeRound((current) => {
       const placement = current.round.selection[selectionIndex];
-      if (placement === undefined) throw new Error(`Nežinoma pasirinkimo vieta „${selectionIndex}“.`);
+      if (placement === undefined) throw new Error(`Unknown selection index "${selectionIndex}".`);
       return removeItem(current, placement.placementId);
     });
   }

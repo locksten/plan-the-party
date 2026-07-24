@@ -11,19 +11,19 @@ function addMany(session: GameSession, itemId: ItemId, count: number): GameSessi
 
 function viablePlan(): GameSession {
   let session = adjustParticipants(createGameSession(), -1);
-  session = addMany(session, "vandens-stotele", 3);
-  session = addMany(session, "mini-sumustiniai", 3);
-  return addItem(session, "viktorina");
+  session = addMany(session, "water-station", 3);
+  session = addMany(session, "mini-sandwiches", 3);
+  return addItem(session, "quiz");
 }
 
 function economicalPlan(): GameSession {
   let session = createGameSession();
-  session = addMany(session, "vandens-stotele", 4);
-  session = addItem(session, "arbatos-rinkinys");
-  session = addMany(session, "darzoviu-lazdeles", 3);
-  session = addItem(session, "vaisiu-lekste");
-  session = addItem(session, "sausainiu-dezute");
-  return addItem(session, "viktorina");
+  session = addMany(session, "water-station", 4);
+  session = addItem(session, "tea-set");
+  session = addMany(session, "vegetable-sticks", 3);
+  session = addItem(session, "fruit-platter");
+  session = addItem(session, "cookie-box");
+  return addItem(session, "quiz");
 }
 
 describe("deriveGameView", () => {
@@ -54,7 +54,7 @@ describe("deriveGameView", () => {
   });
 
   it("summarizes combined event effects once", () => {
-    const effects = summarizeEventEffects(["prisijungia-draugai", "issiliejo", "reklama-pabrango"]);
+    const effects = summarizeEventEffects(["friends-join", "spilled-drink", "advertised-items-cost-more"]);
 
     expect(effects.participantModifiers.map((modifier) => modifier.amount)).toEqual([6]);
     expect(effects.budgetModifiers.map((modifier) => modifier.amount)).toEqual([6]);
@@ -63,12 +63,12 @@ describe("deriveGameView", () => {
   });
 
   it("applies event effects to the plan and resolved items", () => {
-    let session = addItem(createGameSession(), "gerimu-maisymo-stotele");
-    for (const eventId of ["prisijungia-draugai", "issiliejo", "reklama-pabrango"] as const satisfies readonly EventId[]) {
+    let session = addItem(createGameSession(), "drink-mixing-station");
+    for (const eventId of ["friends-join", "spilled-drink", "advertised-items-cost-more"] as const satisfies readonly EventId[]) {
       session = toggleEvent(session, eventId);
     }
     const view = deriveGameView(session);
-    const lemonade = view.game.items.find((item) => item.id === "gerimu-maisymo-stotele");
+    const lemonade = view.game.items.find((item) => item.id === "drink-mixing-station");
 
     expect(view.plan.budget.total).toBe(46);
     expect(view.plan.participants.total).toBe(31);
@@ -77,18 +77,18 @@ describe("deriveGameView", () => {
   });
 
   it("resolves a borrowed rental without changing its base definition", () => {
-    const session = toggleEvent(createGameSession(), "pasiskolinome-masineles");
-    const cars = deriveGameView(session).game.items.find((item) => item.id === "valdomu-automobiliuku-trasa");
+    const session = toggleEvent(createGameSession(), "borrowed-rc-cars");
+    const cars = deriveGameView(session).game.items.find((item) => item.id === "rc-car-racing");
 
     expect(cars).toMatchObject({ price: 0, borrowed: true });
-    expect(cars?.tags?.map((tag) => tag.label)).toEqual(["PASISKOLINOME"]);
+    expect(cars?.tags).toEqual([{ kind: "borrowed" }]);
   });
 
   it("adds the forgotten-cup cost only to poured drinks", () => {
-    const session = toggleEvent(createGameSession(), "pamirsome-puodelius");
+    const session = toggleEvent(createGameSession(), "forgot-cups");
     const items = deriveGameView(session).game.items;
-    const water = items.find((item) => item.id === "vandens-stotele");
-    const juiceBoxes = items.find((item) => item.id === "sulciu-pakeliai");
+    const water = items.find((item) => item.id === "water-station");
+    const juiceBoxes = items.find((item) => item.id === "juice-cartons");
 
     expect(water).toMatchObject({ price: 2, originalPrice: 1, drinkServing: "poured" });
     expect(juiceBoxes).toMatchObject({ price: 2, drinkServing: "individual" });
@@ -104,15 +104,15 @@ describe("deriveGameView", () => {
         projectProgress: { ...session.campaign.projectProgress, "shopping-card": 10 },
       },
     };
-    session = toggleShoppingCardDiscount(session, "vandens-stotele");
-    session = addItem(session, "vandens-stotele");
-    session = addItem(session, "krekeriu-pakeliai");
+    session = toggleShoppingCardDiscount(session, "water-station");
+    session = addItem(session, "water-station");
+    session = addItem(session, "cracker-packets");
 
     const view = deriveGameView(session);
-    expect(view.game.items.find((item) => item.id === "vandens-stotele")).toMatchObject({
+    expect(view.game.items.find((item) => item.id === "water-station")).toMatchObject({
       price: 0,
       shoppingCardDiscount: 1,
-      tags: [{ label: "KORTELĖ −1 €" }],
+      tags: [{ kind: "shopping-card-discount", amount: 1 }],
     });
     expect(view.plan).toMatchObject({
       spent: 4,
@@ -130,10 +130,10 @@ describe("deriveGameView", () => {
         projectProgress: { ...session.campaign.projectProgress, "shopping-card": 10 },
       },
     };
-    session = toggleEvent(session, "pamirsome-puodelius");
-    session = toggleShoppingCardDiscount(session, "vandens-stotele");
+    session = toggleEvent(session, "forgot-cups");
+    session = toggleShoppingCardDiscount(session, "water-station");
 
-    expect(deriveGameView(session).game.items.find((item) => item.id === "vandens-stotele")).toMatchObject({
+    expect(deriveGameView(session).game.items.find((item) => item.id === "water-station")).toMatchObject({
       originalPrice: 1,
       price: 0,
       shoppingCardDiscount: 2,
@@ -141,7 +141,7 @@ describe("deriveGameView", () => {
   });
 
   it("tracks snack portions supplied by an event", () => {
-    const session = toggleEvent(createGameSession(), "naminiai-uzkandziai");
+    const session = toggleEvent(createGameSession(), "homemade-snacks");
 
     expect(deriveGameView(session).plan).toMatchObject({
       snackPortions: 6,
@@ -158,7 +158,7 @@ describe("deriveGameView", () => {
         carryoverResources: [{ kind: "long-lasting-snack-portions", amount: 8, sourceCelebration: 1 }],
       },
     };
-    session = addMany(session, "darzoviu-lazdeles", 6);
+    session = addMany(session, "vegetable-sticks", 6);
 
     expect(deriveGameView(session).plan).toMatchObject({
       snackPortions: 32,
@@ -169,7 +169,7 @@ describe("deriveGameView", () => {
 
   it("includes bottle deposits in completion money", () => {
     let session = viablePlan();
-    session = addItem(session, "limonado-buteliukai");
+    session = addItem(session, "deposit-bottles");
     const plan = deriveGameView(session).plan;
 
     expect(plan.depositRefund).toBe(2);
@@ -193,35 +193,35 @@ describe("deriveGameView", () => {
 
   it("completes the perfect-balance challenge for equal effective portion totals", () => {
     let session = createGameSession();
-    session = addMany(session, "vandens-stotele", 4);
-    session = addMany(session, "darzoviu-lazdeles", 3);
-    session = addMany(session, "vaisiu-lekste", 2);
-    session = addItem(session, "krekeriu-pakeliai");
-    session = addItem(session, "viktorina");
+    session = addMany(session, "water-station", 4);
+    session = addMany(session, "vegetable-sticks", 3);
+    session = addMany(session, "fruit-platter", 2);
+    session = addItem(session, "cracker-packets");
+    session = addItem(session, "quiz");
 
     const view = deriveGameView(session);
 
     expect(view.plan).toMatchObject({ drinkPortions: 32, snackPortions: 32 });
-    expect(view.completedChallengeIds.has("tobula-pusiausvyra")).toBe(true);
+    expect(view.completedChallengeIds.has("perfect-balance")).toBe(true);
   });
 
   it("uses current refreshment prices for the per-participant challenge", () => {
     const regularView = deriveGameView(economicalPlan());
-    const cupsView = deriveGameView(toggleEvent(economicalPlan(), "pamirsome-puodelius"));
+    const cupsView = deriveGameView(toggleEvent(economicalPlan(), "forgot-cups"));
 
     expect(regularView.plan).toMatchObject({ participants: { total: 25 }, spent: 21 });
-    expect(regularView.completedChallengeIds.has("vaises-po-eura-kiekvienam")).toBe(true);
+    expect(regularView.completedChallengeIds.has("one-euro-refreshments")).toBe(true);
     expect(cupsView.plan.spent).toBe(26);
-    expect(cupsView.completedChallengeIds.has("vaises-po-eura-kiekvienam")).toBe(false);
+    expect(cupsView.completedChallengeIds.has("one-euro-refreshments")).toBe(false);
   });
 
   it("accepts either one hyped decoration or multiple plain decorations", () => {
-    const oneHyped = deriveGameView(addItem(economicalPlan(), "balionai"));
-    const mixed = deriveGameView(addItem(addItem(economicalPlan(), "balionai"), "staltiese"));
-    const multiplePlain = deriveGameView(addItem(addItem(economicalPlan(), "staltiese"), "veliaveles"));
+    const oneHyped = deriveGameView(addItem(economicalPlan(), "balloons"));
+    const mixed = deriveGameView(addItem(addItem(economicalPlan(), "balloons"), "tablecloth"));
+    const multiplePlain = deriveGameView(addItem(addItem(economicalPlan(), "tablecloth"), "fabric-bunting"));
 
-    expect(oneHyped.completedChallengeIds.has("vienas-ryskus-ar-keli-paprasti")).toBe(true);
-    expect(mixed.completedChallengeIds.has("vienas-ryskus-ar-keli-paprasti")).toBe(false);
-    expect(multiplePlain.completedChallengeIds.has("vienas-ryskus-ar-keli-paprasti")).toBe(true);
+    expect(oneHyped.completedChallengeIds.has("one-bold-or-several-simple")).toBe(true);
+    expect(mixed.completedChallengeIds.has("one-bold-or-several-simple")).toBe(false);
+    expect(multiplePlain.completedChallengeIds.has("one-bold-or-several-simple")).toBe(true);
   });
 });

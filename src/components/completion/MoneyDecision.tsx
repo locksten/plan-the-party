@@ -13,8 +13,9 @@ import { assert } from "../../assert";
 import { COMPLETION_ART_SOURCES } from "../../completionArt";
 import { ITEM_ART_SOURCES } from "../../itemArt";
 import { META_ART_SOURCES } from "../../metaArt";
-import { classes, formatEuros } from "../../ui";
+import { classes } from "../../ui";
 import { SelectedMark } from "./SelectedMark";
+import { useI18n } from "../../i18n/I18nProvider";
 
 export function MoneyDecision({ unallocated, hasDepositBottles, reusableItems, upgrades, projects, projectProgress, allocation, onToggleFertilizer, onToggleReusable, onToggleUpgrade, onToggleProject }: {
   unallocated: number;
@@ -29,6 +30,7 @@ export function MoneyDecision({ unallocated, hasDepositBottles, reusableItems, u
   onToggleUpgrade: (upgradeId: UpgradeId) => void;
   onToggleProject: (projectId: ProjectId) => void;
 }) {
+  const { translations, formatCurrency } = useI18n();
   return (
     <section className="grid min-w-0 grid-rows-[11.875rem_minmax(0,1fr)] px-3 pb-3 pt-6 text-center">
       <div className="relative flex min-h-0 flex-col items-center justify-center">
@@ -43,16 +45,16 @@ export function MoneyDecision({ unallocated, hasDepositBottles, reusableItems, u
             />
           )}
         </div>
-        <h3 className="m-0 text-[clamp(1.25rem,1.8vw,1.75rem)] leading-none">Liko pinigų</h3>
-        <strong className="mt-1 inline-block rounded-full bg-yellow px-3 py-0.5 text-xl"><span className="relative top-px">{formatEuros(unallocated)}</span></strong>
+        <h3 className="m-0 text-[clamp(1.25rem,1.8vw,1.75rem)] leading-none">{translations.completion.remainingMoney}</h3>
+        <strong className="mt-1 inline-block rounded-full bg-yellow px-3 py-0.5 text-xl"><span className="relative top-px">{formatCurrency(unallocated)}</span></strong>
       </div>
 
-      <div className="flex flex-wrap content-center justify-center gap-x-2 gap-y-1" role="group" aria-label="Kam paskirstyti likusius pinigus">
+      <div className="flex flex-wrap content-center justify-center gap-x-2 gap-y-1" role="group" aria-label={translations.completion.allocationGroup}>
         {projects.map((project) => (
           <MoneyAmountOption
             key={project.id}
             projectId={project.id}
-            label={project.title}
+            label={translations.projects[project.id].title}
             artSource={META_ART_SOURCES[project.id]}
             amount={allocation.projectAmounts[project.id]}
             unallocated={unallocated}
@@ -66,7 +68,7 @@ export function MoneyDecision({ unallocated, hasDepositBottles, reusableItems, u
           return (
             <FixedMoneyOption
               key={upgrade.id}
-              label={upgrade.title}
+              label={translations.upgrades[upgrade.id].title}
               artSource={META_ART_SOURCES[upgrade.id]}
               price={upgrade.price}
               selected={selected}
@@ -76,7 +78,7 @@ export function MoneyDecision({ unallocated, hasDepositBottles, reusableItems, u
           );
         })}
         <FixedMoneyOption
-          label="Trąšos augalui"
+          label={translations.completion.plantFertilizer}
           artSource={META_ART_SOURCES.fertilizer}
           price={FERTILIZER_COST}
           selected={allocation.fertilizer}
@@ -103,7 +105,7 @@ export function MoneyDecision({ unallocated, hasDepositBottles, reusableItems, u
                 <MoneyOptionPrice price={item.price} />
                 {selected && <SelectedMark />}
               </span>
-              <span className="mt-1 max-w-36 text-[0.8125rem] font-black leading-[1.05]">{item.name}</span>
+              <span className="mt-1 max-w-36 text-[0.8125rem] font-black leading-[1.05]">{translations.items[item.id]}</span>
             </button>
           );
         })}
@@ -142,9 +144,10 @@ function FixedMoneyOption({ label, artSource, price, selected, disabled, onToggl
 }
 
 function MoneyOptionPrice({ price }: { price: number }) {
+  const { formatCurrency } = useI18n();
   return (
     <span className="absolute -bottom-1 -right-1 rounded-full border-[0.125rem] border-navy bg-yellow px-1.5 text-sm font-black">
-      <span className="relative top-[0.5px]">{formatEuros(price)}</span>
+      <span className="relative top-[0.5px]">{formatCurrency(price)}</span>
     </span>
   );
 }
@@ -159,15 +162,16 @@ function MoneyAmountOption({ projectId, label, artSource, amount, unallocated, m
   progress: Readonly<{ current: number; target: number }>;
   onToggle: () => void;
 }) {
-  assert(Number.isInteger(amount) && amount >= 0 && amount <= maximumAmount, `Netinkama projekto „${label}“ skiriama suma.`);
-  assert(Number.isInteger(unallocated) && unallocated >= 0, "Nepaskirstytų pinigų suma turi būti neneigiama.");
+  const { translations, formatCurrency } = useI18n();
+  assert(Number.isInteger(amount) && amount >= 0 && amount <= maximumAmount, `Invalid allocation for project "${label}".`);
+  assert(Number.isInteger(unallocated) && unallocated >= 0, "Unallocated funds must be a non-negative integer.");
   assert(
     Number.isInteger(progress.current)
       && progress.current >= 0
       && Number.isInteger(progress.target)
       && progress.target > 0
       && progress.current <= progress.target,
-    `Netinkama projekto „${label}“ eiga.`,
+    `Invalid progress for project "${label}".`,
   );
   const selected = amount > 0;
   const increment = Math.min(PROJECT_ALLOCATION_STEP, maximumAmount - amount, unallocated);
@@ -177,17 +181,17 @@ function MoneyAmountOption({ projectId, label, artSource, amount, unallocated, m
   const existingProgressPercent = progress.current / progress.target * 100;
   const newProgressPercent = amount / progress.target * 100;
   const actionDescription = complete
-    ? "Užpildyta"
+    ? translations.completion.projectFilled
     : canAdvance
-      ? `Pridėti ${increment} €`
-      : selected ? "Pradėti nuo 0 €" : `Reikia bent ${PROJECT_ALLOCATION_STEP} €`;
+      ? translations.completion.addProjectMoney(increment)
+      : selected ? translations.completion.restartProject : translations.completion.projectNeeds(PROJECT_ALLOCATION_STEP);
 
   return (
     <button
       className="group flex w-[9.375rem] min-w-0 flex-col items-center rounded-xl px-1 py-1 outline-none focus-visible:ring-[0.25rem] focus-visible:ring-blue disabled:cursor-not-allowed disabled:grayscale disabled:opacity-35"
       type="button"
       disabled={!selected && !canAdvance}
-      aria-label={`${label}. ${totalProgress} iš ${progress.target} €. ${actionDescription}.`}
+      aria-label={translations.completion.projectProgressLabel(label, totalProgress, progress.target, actionDescription)}
       onClick={onToggle}
     >
       <span className="relative grid size-[5.125rem] place-items-center transition group-hover:-translate-y-1">
@@ -214,7 +218,7 @@ function MoneyAmountOption({ projectId, label, artSource, amount, unallocated, m
         {complete && <SelectedMark />}
       </span>
       <span className="mt-1 max-w-36 text-[0.8125rem] font-black leading-[1.05]">{label}</span>
-      <small className="mt-0.5 text-xs font-black text-muted">{totalProgress} / {progress.target} €</small>
+      <small className="mt-0.5 text-xs font-black text-muted">{formatCurrency(totalProgress)} / {formatCurrency(progress.target)}</small>
     </button>
   );
 }

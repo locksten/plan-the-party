@@ -4,6 +4,8 @@ import { DialogShell } from "./dialogs/DialogShell";
 import { FullscreenButton } from "./game/GameControls";
 import { LandingPage } from "./start/LandingPage";
 import { RaisedButton } from "./ui/RaisedButton";
+import { LanguageSelector } from "./LanguageSelector";
+import { useI18n } from "../i18n/I18nProvider";
 
 type StartScreenProps = {
   missions: readonly SavedMissionSummary[];
@@ -14,6 +16,7 @@ type StartScreenProps = {
 };
 
 export function StartScreen({ missions, onStart, onContinue, onDelete, onFullscreen }: StartScreenProps) {
+  const { translations } = useI18n();
   const [missionToDelete, setMissionToDelete] = useState<SavedMissionSummary | null>(null);
 
   useEffect(() => {
@@ -26,14 +29,15 @@ export function StartScreen({ missions, onStart, onContinue, onDelete, onFullscr
   }, [missionToDelete]);
 
   function confirmDelete() {
-    if (missionToDelete === null) throw new Error("Nepasirinktas įrašas, kurį reikėtų pašalinti.");
+    if (missionToDelete === null) throw new Error("No saved mission was selected for deletion.");
     onDelete(missionToDelete.id);
     setMissionToDelete(null);
   }
 
   return (
     <main className="relative min-h-dvh overflow-hidden">
-      <nav className="layer-ui absolute right-3 top-3 flex gap-1.5" aria-label="Ekrano valdymas">
+      <nav className="layer-ui absolute right-3 top-3 flex items-center gap-2" aria-label={translations.landing.screenControls}>
+        <LanguageSelector />
         <FullscreenButton onFullscreen={onFullscreen} />
       </nav>
       <LandingPage
@@ -46,15 +50,15 @@ export function StartScreen({ missions, onStart, onContinue, onDelete, onFullscr
       {missionToDelete !== null && (
         <DialogShell labelledBy="delete-save-title" onClose={() => setMissionToDelete(null)} className="w-full max-w-[34rem]">
           <h2 id="delete-save-title" className="m-0 pr-10 text-[2rem] leading-tight">
-            Pašalinti {missionToDelete.classLabel} klasės įrašą?
+            {translations.landing.confirmDeleteTitle(missionToDelete.classLabel)}
           </h2>
-          <p className="mb-7 mt-3 text-lg font-bold text-muted">Visa šios klasės pažanga bus prarasta.</p>
+          <p className="mb-7 mt-3 text-lg font-bold text-muted">{translations.landing.confirmDeleteDescription}</p>
           <div className="flex justify-end gap-3">
             <RaisedButton className="min-h-12 px-6 text-lg" type="button" onClick={() => setMissionToDelete(null)}>
-              Atšaukti
+              {translations.common.cancel}
             </RaisedButton>
             <RaisedButton className="min-h-12 bg-coral px-6 text-lg" type="button" onClick={confirmDelete}>
-              Pašalinti
+              {translations.common.delete}
             </RaisedButton>
           </div>
         </DialogShell>

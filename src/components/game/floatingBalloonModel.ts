@@ -17,7 +17,7 @@ export type FloatingBalloonModel = Readonly<{
 
 function nextRandom(random: () => number): number {
   const value = random();
-  assert(Number.isFinite(value) && value >= 0 && value < 1, "Atsitiktinė reikšmė turi būti intervale [0, 1).");
+  assert(Number.isFinite(value) && value >= 0 && value < 1, "The random value must be in the [0, 1) interval.");
   return value;
 }
 
@@ -28,7 +28,7 @@ export function createFloatingBalloonDelay(random: () => number = Math.random): 
 
 export function createFloatingBalloon(random: () => number = Math.random): FloatingBalloonModel {
   const source = FLOATING_BALLOON_SOURCES[Math.floor(nextRandom(random) * FLOATING_BALLOON_SOURCES.length)];
-  assert(source !== undefined, "Nerastas baliono paveikslėlis.");
+  assert(source !== undefined, "No balloon image source was found.");
 
   return {
     source,

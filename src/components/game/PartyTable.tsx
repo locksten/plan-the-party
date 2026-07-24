@@ -5,6 +5,7 @@ import { META_ART_SOURCES } from "../../metaArt";
 import { classes } from "../../ui";
 import { useAutoAnimateRef } from "../../useAutoAnimateRef";
 import { ItemImage, ItemQuantity } from "./ItemImage";
+import { useI18n } from "../../i18n/I18nProvider";
 
 type PartyTableProps = {
   placements: readonly ResolvedPlacement[];
@@ -18,6 +19,7 @@ type PartyTableProps = {
 };
 
 export function PartyTable({ placements, selectedItemIds, plan, shoppingCardOwned, shoppingCardSelected, showProblems, onShoppingCardSelectedChange, onRemoveAt }: PartyTableProps) {
+  const { translations, formatCurrency } = useI18n();
   const selectedByCategory = (category: CategoryId) => placements.filter((placement) => placement.item.category === category);
   const needsDecoration = showProblems && plan.decorationChoices < plan.requiredDecorationChoices;
   const needsDrinks = showProblems && plan.drinkPortions < plan.participants.total;
@@ -25,7 +27,7 @@ export function PartyTable({ placements, selectedItemIds, plan, shoppingCardOwne
   const needsActivity = showProblems && plan.activityChoices < plan.requiredActivityChoices;
 
   return (
-    <section className="h-full min-h-0 min-w-0" aria-label="Klasės šventės stalas">
+    <section className="h-full min-h-0 min-w-0" aria-label={translations.table.label}>
       <div className="relative isolate h-full w-full overflow-visible rounded-[48%/18%] border-[0.3125rem] border-navy bg-table shadow-[inset_0_0_0_0.4375rem_#a7503d,0_0.5rem_0_rgba(23,35,63,0.25)]">
         <DecorationEffects selectedItemIds={selectedItemIds} />
 
@@ -39,7 +41,7 @@ export function PartyTable({ placements, selectedItemIds, plan, shoppingCardOwne
             )}
             type="button"
             aria-pressed={shoppingCardSelected}
-            aria-label={`Pirkėjo kortelė. Pasirinkite kortelę, tada prekę, kad jos kainą sumažintumėte iki ${SHOPPING_CARD_DISCOUNT} eurų.`}
+            aria-label={translations.table.shoppingCard(formatCurrency(SHOPPING_CARD_DISCOUNT))}
             onClick={() => onShoppingCardSelectedChange(!shoppingCardSelected)}
           >
             <img className="size-full object-contain" src={META_ART_SOURCES["shopping-card"]} alt="" draggable={false} />
@@ -55,26 +57,26 @@ export function PartyTable({ placements, selectedItemIds, plan, shoppingCardOwne
 
         <div className={TABLE_GRID_CLASS_NAME}>
           <TableZone
-            category="papildomai"
-            title="Papuošimai"
-            items={selectedByCategory("papildomai")}
+            category="decorations"
+            title={translations.categories.decorations}
+            items={selectedByCategory("decorations")}
             selectedChoices={plan.decorationChoices}
             requiredChoices={plan.requiredDecorationChoices}
             onRemoveAt={onRemoveAt}
           />
           <div className="grid min-h-0 grid-cols-2">
             <TableZone
-              category="gerimai"
-              title="Gėrimai"
-              items={selectedByCategory("gerimai")}
+              category="drinks"
+              title={translations.categories.drinks}
+              items={selectedByCategory("drinks")}
               people={plan.participants.total}
               covered={plan.drinkPortions}
               onRemoveAt={onRemoveAt}
             />
             <TableZone
-              category="uzkandziai"
-              title="Užkandžiai"
-              items={selectedByCategory("uzkandziai")}
+              category="snacks"
+              title={translations.categories.snacks}
+              items={selectedByCategory("snacks")}
               people={plan.participants.total}
               covered={plan.snackPortions}
               carried={plan.carriedSnackPortions}
@@ -83,9 +85,9 @@ export function PartyTable({ placements, selectedItemIds, plan, shoppingCardOwne
             />
           </div>
           <TableZone
-            category="veikla"
-            title="Bendra veikla"
-            items={selectedByCategory("veikla")}
+            category="activities"
+            title={translations.categories.activities}
+            items={selectedByCategory("activities")}
             selectedChoices={plan.activityChoices}
             requiredChoices={plan.requiredActivityChoices}
             onRemoveAt={onRemoveAt}
@@ -125,11 +127,11 @@ function AttentionHighlight({ attention, className }: { attention: boolean; clas
 function DecorationEffects({ selectedItemIds }: { selectedItemIds: ReadonlySet<ItemId> }) {
   return (
     <div className="table-surface-clip pointer-events-none absolute inset-0 z-0 overflow-hidden" aria-hidden="true">
-      {selectedItemIds.has("staltiese") && (
+      {selectedItemIds.has("tablecloth") && (
         <div className="tablecloth-effect absolute inset-0" />
       )}
 
-      {selectedItemIds.has("sviesu-projektorius") && (
+      {selectedItemIds.has("party-light-projector") && (
         <div className="projector-light-effect absolute inset-0" />
       )}
     </div>
@@ -150,22 +152,23 @@ type TableZoneProps = {
 };
 
 const zoneItemAlignment: Readonly<Record<CategoryId, string>> = {
-  gerimai: "translate-y-4",
-  uzkandziai: "translate-y-4",
-  papildomai: "translate-y-2",
-  veikla: "translate-y-3.5",
+  drinks: "translate-y-4",
+  snacks: "translate-y-4",
+  decorations: "translate-y-2",
+  activities: "translate-y-3.5",
 };
 
 function TableZone({ category, title, items, people, covered = 0, carried = 0, eventSupplied = 0, selectedChoices, requiredChoices, onRemoveAt }: TableZoneProps) {
+  const { translations } = useI18n();
   const itemsRef = useAutoAnimateRef<HTMLDivElement>({ duration: 220, easing: "ease-out" });
 
   return (
     <section
       className={classes(
         "relative z-10 isolate flex min-h-0 min-w-0 flex-col gap-2 overflow-visible px-3.5 py-2.5 before:pointer-events-none before:absolute before:inset-x-2.5 before:top-3 before:-z-10 before:text-center before:text-[clamp(1.5625rem,3vw,2.875rem)] before:font-black before:uppercase before:leading-[0.9] before:tracking-[-0.045em] before:text-cream before:opacity-40 before:content-[attr(data-zone-title)]",
-        category === "papildomai" && "border-b-[0.1875rem] border-navy/50",
-        category === "gerimai" && "border-r-[0.1875rem] border-navy/50",
-        category === "veikla" && "border-t-[0.1875rem] border-navy/50",
+        category === "decorations" && "border-b-[0.1875rem] border-navy/50",
+        category === "drinks" && "border-r-[0.1875rem] border-navy/50",
+        category === "activities" && "border-t-[0.1875rem] border-navy/50",
       )}
       data-zone-title={title}
       aria-label={title}
@@ -182,15 +185,15 @@ function TableZone({ category, title, items, people, covered = 0, carried = 0, e
             key={placementId}
             className="relative h-[clamp(4.6875rem,9vw,9.125rem)] max-h-full aspect-square shrink-0 select-none"
             type="button"
-            aria-label={`${item.name}${item.portions === undefined ? "" : `, ${item.portions} porcijos`}. Palieskite, kad nuimtumėte vieną.`}
+            aria-label={translations.table.removeItem(translations.items[item.id], item.portions)}
             onClick={() => onRemoveAt(selectionIndex)}
           >
             <ItemImage item={item} className="size-full" />
           </button>
         ))}
       </div>
-      {category === "uzkandziai" && carried > 0 && <CarriedSnackItem portions={carried} />}
-      {(category === "gerimai" || category === "uzkandziai") && (
+      {category === "snacks" && carried > 0 && <CarriedSnackItem portions={carried} />}
+      {(category === "drinks" || category === "snacks") && (
         <SeatDots
           items={items}
           people={people}
@@ -199,7 +202,7 @@ function TableZone({ category, title, items, people, covered = 0, carried = 0, e
           eventSupplied={eventSupplied}
         />
       )}
-      {(category === "papildomai" || category === "veikla") && (
+      {(category === "decorations" || category === "activities") && (
         <ChoiceDots selected={selectedChoices} required={requiredChoices} />
       )}
     </section>
@@ -207,10 +210,11 @@ function TableZone({ category, title, items, people, covered = 0, carried = 0, e
 }
 
 function CarriedSnackItem({ portions }: { portions: number }) {
-  assert(Number.isInteger(portions) && portions > 0, "Perkeltų užkandžių porcijų skaičius turi būti teigiamas sveikasis skaičius.");
+  const { translations } = useI18n();
+  assert(Number.isInteger(portions) && portions > 0, "Carried snack portions must be a positive integer.");
   const className = "absolute bottom-[2.75rem] left-1.5 z-20 size-[clamp(4.25rem,6vw,5.75rem)]";
   return (
-    <div className={`${className} pointer-events-none`} role="img" aria-label={`${portions} porcijos iš ankstesnės šventės`}>
+    <div className={`${className} pointer-events-none`} role="img" aria-label={translations.table.carriedFood(portions)}>
       <img
         className="size-full object-contain"
         src={LONG_LASTING_FOOD_SOURCE}
@@ -229,14 +233,15 @@ function SeatDots({ items, people, covered, carried, eventSupplied }: {
   carried: number;
   eventSupplied: number;
 }) {
-  assert(people !== undefined, "Gėrimų ir užkandžių zonoms reikia mokinių skaičiaus.");
+  const { translations } = useI18n();
+  assert(people !== undefined, "Drink and snack zones require a participant count.");
   const filled = Math.min(people, covered);
   const carriedFilled = Math.min(filled, carried);
   const eventFilled = Math.min(filled - carriedFilled, eventSupplied);
   const excess = Math.max(0, covered - people);
-  const label = excess === 0 ? `${filled} porcijos iš ${people}` : `${people} porcijos ir ${excess} papildomos`;
-  const carriedLabel = carriedFilled > 0 ? `, ${carriedFilled} iš ankstesnės šventės` : "";
-  const eventLabel = eventFilled > 0 ? `, ${eventFilled} atnešė iš namų` : "";
+  const label = excess === 0 ? translations.table.portionsCovered(filled, people) : translations.table.portionsWithExtra(people, excess);
+  const carriedLabel = carriedFilled > 0 ? translations.table.carriedDetail(carriedFilled) : "";
+  const eventLabel = eventFilled > 0 ? translations.table.homemadeDetail(eventFilled) : "";
   const dotCount = people + excess;
   const empty = Math.max(0, people - covered);
   const groupSizes = portionDotGroupSizes(items, covered, carried, eventSupplied, empty);
@@ -267,10 +272,10 @@ function portionDotGroupSizes(
   eventSupplied: number,
   empty: number,
 ): readonly number[] {
-  assert(Number.isInteger(covered) && covered >= 0, "Padengtų porcijų skaičius turi būti neneigiamas sveikasis skaičius.");
-  assert(Number.isInteger(carried) && carried >= 0, "Anksčiau likusių porcijų skaičius turi būti neneigiamas sveikasis skaičius.");
-  assert(Number.isInteger(eventSupplied) && eventSupplied >= 0, "Įvykio porcijų skaičius turi būti neneigiamas sveikasis skaičius.");
-  assert(Number.isInteger(empty) && empty >= 0, "Trūkstamų porcijų skaičius turi būti neneigiamas sveikasis skaičius.");
+  assert(Number.isInteger(covered) && covered >= 0, "Covered portions must be a non-negative integer.");
+  assert(Number.isInteger(carried) && carried >= 0, "Carried portions must be a non-negative integer.");
+  assert(Number.isInteger(eventSupplied) && eventSupplied >= 0, "Event-supplied portions must be a non-negative integer.");
+  assert(Number.isInteger(empty) && empty >= 0, "Missing portions must be a non-negative integer.");
 
   const groups: number[] = [];
   let remaining = covered;
@@ -283,12 +288,12 @@ function portionDotGroupSizes(
   remaining -= eventGroup;
 
   for (const { item } of items) {
-    assert(item.portions !== undefined && Number.isInteger(item.portions) && item.portions > 0, "Gėrimas arba užkandis turi turėti teigiamą porcijų skaičių.");
+    assert(item.portions !== undefined && Number.isInteger(item.portions) && item.portions > 0, "Every drink and snack item must provide a positive integer number of portions.");
     const itemGroup = Math.min(remaining, item.portions);
     if (itemGroup > 0) groups.push(itemGroup);
     remaining -= itemGroup;
   }
-  assert(remaining === 0, "Porcijų grupės turi apimti visas turimas porcijas.");
+  assert(remaining === 0, "Portion groups must account for every available portion.");
 
   groups.push(...Array.from({ length: empty }, () => 1));
   return groups;
@@ -299,15 +304,16 @@ function groupsOfAtMostFive(count: number): readonly number[] {
 }
 
 function ChoiceDots({ selected, required }: { selected: number | undefined; required: number | undefined }) {
-  assert(selected !== undefined && required !== undefined, "Veiklų ir papuošimų zonoms reikia pasirinkimų skaičiaus.");
-  assert(Number.isInteger(selected) && selected >= 0, "Pasirinkimų skaičius turi būti neneigiamas sveikasis skaičius.");
-  assert(Number.isInteger(required) && required >= 0, "Privalomų pasirinkimų skaičius turi būti neneigiamas sveikasis skaičius.");
+  const { translations } = useI18n();
+  assert(selected !== undefined && required !== undefined, "Activity and decoration zones require choice counts.");
+  assert(Number.isInteger(selected) && selected >= 0, "The selected choice count must be a non-negative integer.");
+  assert(Number.isInteger(required) && required >= 0, "The required choice count must be a non-negative integer.");
   const dotCount = Math.max(selected, required);
   if (dotCount === 0) return null;
 
   const label = required === 0
-    ? `Pasirinkta: ${selected}`
-    : `Pasirinkta ${selected}, reikia bent ${required}`;
+    ? translations.table.choicesSelected(selected)
+    : translations.table.choicesRequired(selected, required);
 
   return (
     <QuantityDots
@@ -330,22 +336,23 @@ function QuantityDots({ count, groupSizes, ungroupedFromIndex, label, classNameF
   label: string;
   classNameForIndex: (index: number) => string;
 }) {
-  assert(Number.isInteger(count) && count > 0, "Taškų skaičius turi būti teigiamas sveikasis skaičius.");
+  assert(Number.isInteger(count) && count > 0, "The dot count must be a positive integer.");
   const resolvedGroupSizes = groupSizes ?? groupsOfAtMostFive(count);
-  assert(resolvedGroupSizes.every((size) => Number.isInteger(size) && size > 0), "Kiekvienoje taškų grupėje turi būti bent vienas taškas.");
-  assert(resolvedGroupSizes.reduce((total, size) => total + size, 0) === count, "Taškų grupės turi apimti visus taškus.");
+  assert(resolvedGroupSizes.every((size) => Number.isInteger(size) && size > 0), "Every dot group must contain at least one dot.");
+  assert(resolvedGroupSizes.reduce((total, size) => total + size, 0) === count, "Dot groups must account for every dot.");
   let nextIndex = 0;
   const groups = resolvedGroupSizes.map((size) => {
     const group = Array.from({ length: size }, () => nextIndex++);
     return group;
   });
   if (ungroupedFromIndex !== undefined) {
-    assert(Number.isInteger(ungroupedFromIndex) && ungroupedFromIndex >= 0 && ungroupedFromIndex < count, "Atskirų taškų pradžios indeksas turi patekti į taškų intervalą.");
-    assert(groups.every((group) => group.every((index) => index < ungroupedFromIndex) || group.every((index) => index >= ungroupedFromIndex)), "Atskirų taškų riba negali kirsti taškų grupės.");
+    assert(Number.isInteger(ungroupedFromIndex) && ungroupedFromIndex >= 0 && ungroupedFromIndex < count, "The ungrouped-dot start index must be within the dot range.");
+    assert(groups.every((group) => group.every((index) => index < ungroupedFromIndex) || group.every((index) => index >= ungroupedFromIndex)), "The ungrouped-dot boundary must not split a dot group.");
   }
   return (
     <div
       className="relative z-10 flex w-fit max-w-full flex-wrap items-center justify-start gap-x-0.5 gap-y-1 self-center"
+      role="img"
       aria-label={label}
     >
       {groups.map((group, groupIndex) => (

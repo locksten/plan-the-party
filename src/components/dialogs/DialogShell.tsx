@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { classes } from "../../ui";
 import { IconButton } from "../ui/IconButton";
+import { useI18n } from "../../i18n/I18nProvider";
 
 type DialogShellProps = Readonly<{
   labelledBy: string;
@@ -11,8 +12,9 @@ type DialogShellProps = Readonly<{
 }>;
 
 function DialogCloseButton({ onClose }: { onClose: () => void }) {
+  const { translations } = useI18n();
   return (
-    <IconButton type="button" onClick={onClose} aria-label="Uždaryti" title="Uždaryti">
+    <IconButton type="button" onClick={onClose} aria-label={translations.common.close} title={translations.common.close}>
       <svg className="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" aria-hidden="true">
         <path d="M6 6l12 12M18 6 6 18" />
       </svg>

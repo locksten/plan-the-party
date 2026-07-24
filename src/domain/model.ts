@@ -1,4 +1,6 @@
-export type CategoryId = "gerimai" | "uzkandziai" | "veikla" | "papildomai";
+import type { CategoryId, EventId } from "./ids";
+
+export type { CategoryId } from "./ids";
 
 export type ItemArtId =
   | "water-station"
@@ -26,14 +28,29 @@ export type ItemArtId =
   | "mini-sandwiches"
   | "celebration-cake";
 
-export type ItemTag = Readonly<{
-  label: string;
-  tone: "standard" | "hype";
-}>;
+export type HypeTagId =
+  | "mix-your-flavor"
+  | "your-style"
+  | "sweetest-moment"
+  | "party-in-the-air"
+  | "turn-on-the-sparkle";
+
+export type ItemTag =
+  | Readonly<{ kind: "deposit"; amount: number }>
+  | Readonly<{ kind: "long-lasting" }>
+  | Readonly<{ kind: "hype"; id: HypeTagId }>
+  | Readonly<{ kind: "self-made" }>
+  | Readonly<{ kind: "rental" }>
+  | Readonly<{ kind: "reusable" }>
+  | Readonly<{ kind: "owned" }>
+  | Readonly<{ kind: "patience" }>
+  | Readonly<{ kind: "patience-paid-off" }>
+  | Readonly<{ kind: "no-time" }>
+  | Readonly<{ kind: "borrowed" }>
+  | Readonly<{ kind: "shopping-card-discount"; amount: number }>;
 
 export type ItemDefinition = Readonly<{
   id: string;
-  name: string;
   category: CategoryId;
   price: number;
   portions?: number;
@@ -63,12 +80,10 @@ type EventEffect =
   | { kind: "pouredDrinkSurcharge"; amount: number }
   | { kind: "snackBonus"; amount: number }
   | { kind: "borrowedItem"; itemId: string }
-  | { kind: "minimumChoices"; category: "veikla" | "papildomai"; count: number };
+  | { kind: "minimumChoices"; category: "activities" | "decorations"; count: number };
 
 export type MysteryEvent = Readonly<{
   id: string;
-  title: string;
-  description: string;
   effects: readonly EventEffect[];
 }>;
 
@@ -79,13 +94,11 @@ type ChallengeRule =
   | { kind: "hypeWithRemainingMoney"; minimumRemaining: number }
   | { kind: "reusableWithLongLastingSnack" }
   | { kind: "exactlyOneAtOrAbovePrice"; price: number }
-  | { kind: "refreshmentsWithinParticipantBudget" }
+  | { kind: "refreshmentsWithinParticipantBudget"; maximumPerParticipant: number }
   | { kind: "oneHypeOrMultiplePlainDecorations" };
 
 export type ChallengeCard = Readonly<{
   id: string;
-  title: string;
-  description: string;
   rule: ChallengeRule;
 }>;
 
@@ -105,7 +118,10 @@ export type CarryoverResource = Readonly<{
 
 export type ValueModifier = Readonly<{
   id: string;
-  label: string;
+  label:
+    | Readonly<{ kind: "event"; eventId: EventId }>
+    | Readonly<{ kind: "whole-school-celebration" }>
+    | Readonly<{ kind: "teacher-adjustment" }>;
   amount: number;
   source: "scenario" | "event" | "teacher";
 }>;
@@ -150,8 +166,8 @@ export type PlanProblem =
   | Readonly<{ kind: "missingActivities"; amount: number }>
   | Readonly<{ kind: "missingDecorations"; amount: number }>;
 
-export type FoodLeftoverChoice = "suvalgyti" | "ismesti" | "kompostuoti";
-export type LongLastingFoodLeftoverChoice = "suvalgyti" | "ismesti" | "pasilikti-kitai-sventei";
+export type FoodLeftoverChoice = "eat" | "discard" | "compost";
+export type LongLastingFoodLeftoverChoice = "eat" | "discard" | "keep-for-next-party";
 
 export type GameConfigModel<Id extends string> = Readonly<{
   items: readonly ResolvedItem<Id>[];

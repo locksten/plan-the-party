@@ -34,7 +34,7 @@ describe("mission storage", () => {
 
     expect(loadMissionSummaries(storage)).toEqual([]);
     expect(storage.values.has("plan-the-party:saves")).toBe(false);
-    storage.values.set("plan-the-party:saves", JSON.stringify({ version: 16 }));
+    storage.values.set("plan-the-party:saves", JSON.stringify({ version: 15 }));
 
     expect(loadMissionSummaries(storage)).toEqual([]);
     expect(storage.values.has("plan-the-party:saves")).toBe(false);
@@ -54,29 +54,29 @@ describe("mission storage", () => {
     expect(storage.values.size).toBe(1);
     expect(loadMissionSummaries(storage).map((mission) => mission.id)).toEqual(["second", "first"]);
 
-    const changedSession = adjustBudget(addItem(first.state.session, "vandens-stotele"), 1);
+    const changedSession = adjustBudget(addItem(first.state.session, "water-station"), 1);
     saveMission(first.id, {
       ...first.state,
       session: changedSession,
-      revealedDiscussionIds: ["ko-atsisakytume"],
+      revealedDiscussionIds: ["what-to-give-up"],
       eventCardsCue: "opened",
     }, storage);
 
     expect(loadSavedMission(first.id, storage).state).toMatchObject({
       session: {
         round: {
-          selection: [{ itemId: "vandens-stotele" }],
+          selection: [{ itemId: "water-station" }],
           budgetAdjustment: 1,
         },
       },
-      revealedDiscussionIds: ["ko-atsisakytume"],
+      revealedDiscussionIds: ["what-to-give-up"],
       eventCardsCue: "opened",
     });
     expect(loadSavedMission(second.id, storage).state.session.round.selection).toEqual([]);
 
     deleteSavedMission(first.id, storage);
     expect(loadMissionSummaries(storage).map((mission) => mission.id)).toEqual(["second"]);
-    expect(() => loadSavedMission(first.id, storage)).toThrow("nerasta");
+    expect(() => loadSavedMission(first.id, storage)).toThrow("was not found");
 
     const thirdDraft = createMissionDraft("third");
     expect(saveMission(thirdDraft.id, thirdDraft.state, storage).classLabel).toBe("C");

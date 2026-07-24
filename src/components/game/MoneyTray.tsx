@@ -1,9 +1,10 @@
 import { DiscussionButton } from "../DiscussionButton";
 import type { GamePlan } from "../../domain";
-import { classes, formatEuros } from "../../ui";
+import { classes } from "../../ui";
 import { useAutoAnimateRef } from "../../useAutoAnimateRef";
 import { UI_ART_SOURCES } from "../../uiArt";
 import { RaisedButton } from "../ui/RaisedButton";
+import { useI18n } from "../../i18n/I18nProvider";
 
 type MoneyTrayProps = {
   plan: GamePlan;
@@ -14,10 +15,11 @@ type MoneyTrayProps = {
 };
 
 export function MoneyTray({ plan, problems, attention, onOpenDiscussions, onCheck }: MoneyTrayProps) {
+  const { translations, formatCurrency } = useI18n();
   return (
     <section
       className="relative z-30 grid h-[6.5rem] grid-cols-[minmax(0,4fr)_minmax(10rem,0.72fr)_minmax(11rem,0.82fr)] items-stretch gap-2"
-      aria-label="Biudžeto dėklas"
+      aria-label={translations.tray.label}
     >
       <div className={classes(
         "grid min-h-0 min-w-0 grid-cols-[auto_minmax(0,1fr)] grid-rows-[minmax(0,1fr)] items-center gap-5 rounded-xl border-[0.125rem] border-navy p-2",
@@ -25,10 +27,10 @@ export function MoneyTray({ plan, problems, attention, onOpenDiscussions, onChec
         attention && "animate-tray-shake",
       )}>
         <div className="min-w-0">
-          <span className="block text-[0.9375rem] font-bold text-muted">Liko iš {formatEuros(plan.budget.total)}</span>
-          <strong className={classes("block text-[2.625rem] leading-none", plan.available < 0 && "text-[#b72f27]")}>{formatEuros(plan.available)}</strong>
+          <span className="block text-[0.9375rem] font-bold text-muted">{translations.tray.leftFrom(formatCurrency(plan.budget.total))}</span>
+          <strong className={classes("block text-[2.625rem] leading-none", plan.available < 0 && "text-[#b72f27]")}>{formatCurrency(plan.available)}</strong>
           <small className="mt-1 block whitespace-nowrap text-sm font-bold text-muted">
-            Išleista {formatEuros(plan.spent)}
+            {translations.tray.spent(formatCurrency(plan.spent))}
           </small>
         </div>
         <CoinGrid amount={plan.available} />
@@ -48,7 +50,7 @@ export function MoneyTray({ plan, problems, attention, onOpenDiscussions, onChec
           </ul>
         )}
         <RaisedButton className="h-full w-full text-[1.375rem]" tone="yellow" type="button" onClick={onCheck}>
-          Baigti planą
+          {translations.tray.checkPlan}
         </RaisedButton>
       </div>
     </section>

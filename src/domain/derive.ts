@@ -67,7 +67,7 @@ const eventById = new Map<EventId, EventCard>(EVENTS.map((event) => [event.id, e
 
 function getEvent(id: EventId): EventCard {
   const event = eventById.get(id);
-  if (event === undefined) throw new Error(`Nežinomas įvykis „${id}“.`);
+  if (event === undefined) throw new Error(`Unknown event "${id}".`);
   return event;
 }
 
@@ -88,10 +88,10 @@ export function summarizeEventEffects(activeEventIds: readonly EventId[]): Round
       const modifierId = `event:${event.id}:${index}`;
       switch (effect.kind) {
         case "budgetBonus":
-          budgetModifiers.push({ id: modifierId, label: event.title, amount: effect.amount, source: "event" });
+          budgetModifiers.push({ id: modifierId, label: { kind: "event", eventId: event.id }, amount: effect.amount, source: "event" });
           break;
         case "participants":
-          participantModifiers.push({ id: modifierId, label: event.title, amount: effect.amount, source: "event" });
+          participantModifiers.push({ id: modifierId, label: { kind: "event", eventId: event.id }, amount: effect.amount, source: "event" });
           break;
         case "drinkLoss":
           drinkPortionsLost += effect.amount;
@@ -109,7 +109,7 @@ export function summarizeEventEffects(activeEventIds: readonly EventId[]): Round
           borrowedItemIds.add(effect.itemId);
           break;
         case "minimumChoices":
-          if (effect.category === "veikla") minimumActivities = Math.max(minimumActivities, effect.count);
+          if (effect.category === "activities") minimumActivities = Math.max(minimumActivities, effect.count);
           else minimumDecorations = Math.max(minimumDecorations, effect.count);
           break;
       }
@@ -139,13 +139,13 @@ function addSurcharge(item: GameItem, amount: number): GameItem {
 }
 
 function addShoppingCardDiscount(item: GameItem): GameItem {
-  assert(item.price > 0, "Pirkėjo kortelės nuolaida netaikoma nemokamai prekei.");
+  assert(item.price > 0, "The discount card cannot be applied to a free item.");
   const discount = Math.min(SHOPPING_CARD_DISCOUNT, item.price);
   return {
     ...item,
     price: item.price - discount,
     shoppingCardDiscount: discount,
-    tags: [...(item.tags ?? []), { label: `KORTELĖ −${discount} €`, tone: "standard" }],
+    tags: [...(item.tags ?? []), { kind: "shopping-card-discount", amount: discount }],
   };
 }
 
@@ -155,38 +155,38 @@ function resolveItems(session: GameSession, effects: RoundEffects): readonly Gam
     const item = ITEMS.find((candidate) => candidate.id === entry.itemId);
     if (item !== undefined && "selfMade" in item && item.selfMade === true) selectedSelfMadeItemIds.add(item.id);
   }
-  assert(selectedSelfMadeItemIds.size <= 1, "Vienai šventei galima pasirinkti tik vieną pačių ruošiamą dalyką.");
+  assert(selectedSelfMadeItemIds.size <= 1, "A party can include at most one self-made item.");
   const selectedSelfMadeItemId = selectedSelfMadeItemIds.values().next().value;
   const musicSystemOwned = projectComplete(session.campaign.projectProgress, "music-system");
   const plantItemUnlocked = session.campaign.plantGrowth + 1 >= PLANT_ITEM_UNLOCK_STAGE;
   const progressionItems: readonly GameItem[] = PROGRESSION_ITEMS.map((item) => {
-    if (item.id === "karaokes-scena") {
+    if (item.id === "karaoke-stage") {
       return {
         ...item,
-        tags: musicSystemOwned ? [{ label: "TURIME", tone: "standard" as const }] : undefined,
+        tags: musicSystemOwned ? [{ kind: "owned" as const }] : undefined,
         locked: !musicSystemOwned,
       };
     }
     return {
       ...item,
-      tags: [{ label: plantItemUnlocked ? "KANTRYBĖ ATSIPIRKO!" : "KANTRYBĖS", tone: "standard" as const }],
+      tags: [{ kind: plantItemUnlocked ? "patience-paid-off" as const : "patience" as const }],
       locked: !plantItemUnlocked,
     };
   });
   const ownedIds = new Set<string>(session.campaign.ownedReusableItemIds);
   const shoppingCardOwned = projectComplete(session.campaign.projectProgress, "shopping-card");
   const shoppingCardItemId = session.round.shoppingCardItemId;
-  assert(shoppingCardOwned || shoppingCardItemId === null, "Neįsigyta pirkėjo kortelė negali būti priskirta prekei.");
+  assert(shoppingCardOwned || shoppingCardItemId === null, "A locked discount card cannot be assigned to an item.");
 
   return [...ITEMS, ...progressionItems].map((definition): GameItem => {
     let item: GameItem = definition;
     if (item.selfMade === true && selectedSelfMadeItemId !== undefined && item.id !== selectedSelfMadeItemId) {
-      item = { ...item, tags: [{ label: "NELIKO LAIKO", tone: "standard" }] };
+      item = { ...item, tags: [{ kind: "no-time" }] };
     }
-    if (ownedIds.has(item.id)) item = { ...item, price: 0, tags: [{ label: "TURIME", tone: "standard" }] };
+    if (ownedIds.has(item.id)) item = { ...item, price: 0, tags: [{ kind: "owned" }] };
     if (effects.borrowedItemIds.has(item.id) && item.price > 0) {
-      const hypeTags = item.tags?.filter((tag) => tag.tone === "hype") ?? [];
-      item = { ...item, price: 0, borrowed: true, tags: [{ label: "PASISKOLINOME", tone: "standard" }, ...hypeTags] };
+      const hypeTags = item.tags?.filter((tag) => tag.kind === "hype") ?? [];
+      item = { ...item, price: 0, borrowed: true, tags: [{ kind: "borrowed" }, ...hypeTags] };
     }
     if (item.hype === true) item = addSurcharge(item, effects.hypeSurcharge);
     if (item.drinkServing === "poured") item = addSurcharge(item, effects.pouredDrinkSurcharge);
@@ -230,21 +230,21 @@ function derivePlan(session: GameSession, game: GameConfig, effects: RoundEffect
     spent += item.price * quantity;
     depositRefund += (item.depositRefund ?? 0) * quantity;
     switch (item.category) {
-      case "gerimai":
+      case "drinks":
         drinkPortions += (item.portions ?? 0) * quantity;
         drinkVariety += 1;
         break;
-      case "uzkandziai": {
+      case "snacks": {
         const portions = (item.portions ?? 0) * quantity;
         if (item.shelfLife === "spoiling") spoilingSnackPortions += portions;
         else longLastingSnackPortions += portions;
         snackVariety += 1;
         break;
       }
-      case "veikla":
+      case "activities":
         activityChoices += 1;
         break;
-      case "papildomai":
+      case "decorations":
         decorationChoices += 1;
         break;
     }
@@ -258,16 +258,16 @@ function derivePlan(session: GameSession, game: GameConfig, effects: RoundEffect
   let requiredSnackVariety = 0;
 
   if (session.campaign.wholeSchoolCelebration) {
-    budgetModifiers.unshift({ id: "scenario:whole-school:budget", label: "Visa mokykla prie vieno stalo", amount: LARGE_CELEBRATION.budgetBonus, source: "scenario" });
-    participantModifiers.unshift({ id: "scenario:whole-school:participants", label: "Visa mokykla prie vieno stalo", amount: LARGE_CELEBRATION.participantBonus, source: "scenario" });
+    budgetModifiers.unshift({ id: "scenario:whole-school:budget", label: { kind: "whole-school-celebration" }, amount: LARGE_CELEBRATION.budgetBonus, source: "scenario" });
+    participantModifiers.unshift({ id: "scenario:whole-school:participants", label: { kind: "whole-school-celebration" }, amount: LARGE_CELEBRATION.participantBonus, source: "scenario" });
     requiredActivityChoices = Math.max(requiredActivityChoices, LARGE_CELEBRATION.minimumActivities);
     requiredDecorationChoices = Math.max(requiredDecorationChoices, LARGE_CELEBRATION.minimumDecorations);
     requiredDrinkVariety = LARGE_CELEBRATION.minimumDrinkVariety;
     requiredSnackVariety = LARGE_CELEBRATION.minimumSnackVariety;
   }
 
-  budgetModifiers.push({ id: "teacher:budget", label: "Mokytojo pakeitimas", amount: session.round.budgetAdjustment, source: "teacher" });
-  participantModifiers.push({ id: "teacher:participants", label: "Mokytojo pakeitimas", amount: session.round.participantAdjustment, source: "teacher" });
+  budgetModifiers.push({ id: "teacher:budget", label: { kind: "teacher-adjustment" }, amount: session.round.budgetAdjustment, source: "teacher" });
+  participantModifiers.push({ id: "teacher:participants", label: { kind: "teacher-adjustment" }, amount: session.round.participantAdjustment, source: "teacher" });
   const budget = valueBreakdown(BASE_BUDGET, budgetModifiers);
   const participants = valueBreakdown(BASE_PARTICIPANTS, participantModifiers);
 
@@ -335,12 +335,12 @@ function challengeCompleted(challenge: ChallengeCard, game: GameConfig, selectio
     }
     case "refreshmentsWithinParticipantBudget": {
       const refreshmentSpend = selectedItems
-        .filter((item) => item.category === "gerimai" || item.category === "uzkandziai")
+        .filter((item) => item.category === "drinks" || item.category === "snacks")
         .reduce((sum, item) => sum + item.price, 0);
-      return refreshmentSpend <= plan.participants.total;
+      return refreshmentSpend <= plan.participants.total * challenge.rule.maximumPerParticipant;
     }
     case "oneHypeOrMultiplePlainDecorations": {
-      const decorations = selectedItems.filter((item) => item.category === "papildomai");
+      const decorations = selectedItems.filter((item) => item.category === "decorations");
       const oneHypedDecoration = decorations.length === 1 && decorations[0]?.hype === true;
       const multiplePlainDecorations = decorations.length >= 2 && decorations.every((item) => item.hype !== true);
       return oneHypedDecoration || multiplePlainDecorations;
@@ -372,7 +372,7 @@ function resolvePlacements(game: GameConfig, selection: Selection): readonly Res
   const itemsById = new Map(game.items.map((item) => [item.id, item]));
   return selection.map((entry, selectionIndex) => {
     const item = itemsById.get(entry.itemId);
-    if (item === undefined) throw new Error(`Pasirinkta nežinoma prekė „${entry.itemId}“.`);
+    if (item === undefined) throw new Error(`The selection contains unknown item "${entry.itemId}".`);
     return { placementId: entry.placementId, selectionIndex, item };
   });
 }
@@ -385,7 +385,7 @@ export function canAddItem(game: GameConfig, selection: Selection, item: GameIte
   if (item.locked === true) return false;
   const itemsById = new Map(game.items.map((candidate) => [candidate.id, candidate]));
   if (item.selfMade === true && selection.some((entry) => itemsById.get(entry.itemId)?.selfMade === true)) return false;
-  if (item.category !== "gerimai" && item.category !== "uzkandziai") return selectionQuantity(selection, item.id) === 0;
+  if (item.category !== "drinks" && item.category !== "snacks") return selectionQuantity(selection, item.id) === 0;
   const count = selection.reduce((total, entry) => total + Number(itemsById.get(entry.itemId)?.category === item.category), 0);
   return count < MAX_REPEATABLE_ITEMS_PER_CATEGORY;
 }
@@ -398,7 +398,7 @@ export function moneyAllocationTotal(game: GameConfig, allocation: MoneyAllocati
   const itemsById = new Map(game.items.map((item) => [item.id, item]));
   const reusableCost = allocation.reusableItemIds.reduce((total, itemId) => {
     const item = itemsById.get(itemId);
-    if (item?.reusable !== true) throw new Error(`Nežinomas daugkartinis daiktas „${itemId}“.`);
+    if (item?.reusable !== true) throw new Error(`Unknown reusable item "${itemId}".`);
     return total + item.price;
   }, 0);
   const upgradeCost = allocation.upgradeIds.reduce((total, upgradeId) => total + upgradeDefinition(upgradeId).price, 0);

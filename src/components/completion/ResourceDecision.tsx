@@ -1,6 +1,7 @@
 import { COMPLETION_ART_SOURCES, type CompletionArtId } from "../../completionArt";
 import { classes } from "../../ui";
 import { SelectedMark } from "./SelectedMark";
+import { useI18n } from "../../i18n/I18nProvider";
 
 export function ResourceDecision<Choice extends string>({ title, amount, art, options, actionArt, choice, onChoice }: {
   title: string;
@@ -11,6 +12,7 @@ export function ResourceDecision<Choice extends string>({ title, amount, art, op
   choice: Choice | null;
   onChoice: (choice: Choice | null) => void;
 }) {
+  const { translations } = useI18n();
   return (
     <section className="grid min-w-0 grid-cols-[minmax(8.75rem,0.8fr)_minmax(0,1.7fr)] items-center gap-2 px-3 py-2 text-center">
       <div className="relative flex min-h-0 flex-col items-center justify-center self-stretch">
@@ -19,7 +21,7 @@ export function ResourceDecision<Choice extends string>({ title, amount, art, op
         <strong className="mt-1 inline-block rounded-full bg-yellow px-3 py-0.5 text-xl"><span className="relative top-[0.5px]">{amount}</span></strong>
       </div>
 
-      <div className="flex flex-wrap content-center justify-center gap-x-2 gap-y-1" role="group" aria-label={`Ką daryti: ${title}`}>
+      <div className="flex flex-wrap content-center justify-center gap-x-2 gap-y-1" role="group" aria-label={translations.completion.foodActionGroup(title)}>
         {options.map((option) => {
           const selected = choice === option.id;
           return (

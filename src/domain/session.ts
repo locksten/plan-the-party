@@ -89,7 +89,7 @@ export function createGameSession(): GameSession {
 export function addItem(session: GameSession, itemId: ItemId): GameSession {
   const { game } = deriveGameView(session);
   const item = game.items.find((candidate) => candidate.id === itemId);
-  if (item === undefined) throw new Error(`Nežinoma prekė „${itemId}“.`);
+  if (item === undefined) throw new Error(`Unknown item "${itemId}".`);
   if (!canAddItem(game, session.round.selection, item)) return session;
 
   const placement = { placementId: session.round.nextPlacementId, itemId };
@@ -105,22 +105,22 @@ export function addItem(session: GameSession, itemId: ItemId): GameSession {
 
 export function removeItem(session: GameSession, placementId: number): GameSession {
   const selection = session.round.selection.filter((entry) => entry.placementId !== placementId);
-  if (selection.length === session.round.selection.length) throw new Error(`Nežinoma pasirinkimo vieta „${placementId}“.`);
+  if (selection.length === session.round.selection.length) throw new Error(`Unknown placement "${placementId}".`);
   return { ...session, round: { ...session.round, selection } };
 }
 
 export function toggleShoppingCardDiscount(session: GameSession, itemId: ItemId): GameSession {
   if (!projectComplete(session.campaign.projectProgress, "shopping-card")) {
-    throw new Error("Pirkėjo kortelę galima naudoti tik ją įsigijus.");
+    throw new Error("The discount card can only be used after it has been unlocked.");
   }
   const item = deriveGameView(session).game.items.find((candidate) => candidate.id === itemId);
-  if (item === undefined) throw new Error(`Nežinoma prekė „${itemId}“.`);
+  if (item === undefined) throw new Error(`Unknown item "${itemId}".`);
   if (session.round.shoppingCardItemId === itemId) {
     return { ...session, round: { ...session.round, shoppingCardItemId: null } };
   }
   const priceBeforeDiscount = item.price + (item.shoppingCardDiscount ?? 0);
   if (priceBeforeDiscount === 0) {
-    throw new Error("Pirkėjo kortelės nuolaida taikoma tik mokamai prekei.");
+    throw new Error("The discount card can only be applied to a paid item.");
   }
   return { ...session, round: { ...session.round, shoppingCardItemId: itemId } };
 }
@@ -128,7 +128,7 @@ export function toggleShoppingCardDiscount(session: GameSession, itemId: ItemId)
 export function toggleEvent(session: GameSession, eventId: EventId): GameSession {
   const active = session.round.activeEventIds.includes(eventId);
   const event = EVENTS.find((candidate) => candidate.id === eventId);
-  if (event === undefined) throw new Error(`Nežinomas įvykis „${eventId}“.`);
+  if (event === undefined) throw new Error(`Unknown event "${eventId}".`);
   const discountTargetBecomesFree = !active && event.effects.some(
     (effect) => effect.kind === "borrowedItem" && effect.itemId === session.round.shoppingCardItemId,
   );
@@ -172,26 +172,26 @@ export function adjustParticipants(session: GameSession, change: -1 | 1): GameSe
 
 export function advanceCelebration(session: GameSession, decisions: CompletionDecisions): GameSession {
   const view = deriveGameView(session);
-  if (view.problems.length > 0) throw new Error("Negalima pradėti naujos šventės, kol dabartinis planas nebaigtas.");
+  if (view.problems.length > 0) throw new Error("A new party cannot start until the current plan is complete.");
 
   const remainingMoney = completionFunds(view.plan);
   if (moneyAllocationTotal(view.game, decisions.moneyAllocation) > remainingMoney) {
-    throw new Error("Paskirstyta daugiau pinigų, nei jų liko.");
+    throw new Error("The allocation exceeds the remaining funds.");
   }
-  if (decisions.spoilingFoodChoice === "kompostuoti" && !session.campaign.ownedUpgradeIds.includes("compost-bin")) {
-    throw new Error("Kompostuoti galima tik turint komposto dėžę.");
+  if (decisions.spoilingFoodChoice === "compost" && !session.campaign.ownedUpgradeIds.includes("compost-bin")) {
+    throw new Error("Food can only be composted after the compost bin has been unlocked.");
   }
-  if (decisions.spoilingFoodChoice === "kompostuoti" && view.plan.spoilingSnackPortions === 0) {
-    throw new Error("Nėra gendančio maisto, kurį būtų galima kompostuoti.");
+  if (decisions.spoilingFoodChoice === "compost" && view.plan.spoilingSnackPortions === 0) {
+    throw new Error("There is no spoiling food to compost.");
   }
 
   const nextProjectProgress = PROJECT_IDS.reduce<ProjectProgress>((progress, projectId) => {
     const allocatedAmount = decisions.moneyAllocation.projectAmounts[projectId];
     if (!Number.isInteger(allocatedAmount) || allocatedAmount < 0) {
-      throw new Error(`Projektui „${projectId}“ skiriama suma turi būti neneigiama sveikoji suma.`);
+      throw new Error(`The allocation for project "${projectId}" must be a non-negative integer.`);
     }
     const amount = session.campaign.projectProgress[projectId] + allocatedAmount;
-    if (amount > projectDefinition(projectId).target) throw new Error(`Projektui „${projectId}“ paskirta per daug pinigų.`);
+    if (amount > projectDefinition(projectId).target) throw new Error(`Project "${projectId}" was allocated more than its target.`);
     return { ...progress, [projectId]: amount };
   }, emptyProjectProgress());
   const startsWholeSchoolCelebration = projectComplete(nextProjectProgress, "large-celebration");
@@ -200,7 +200,7 @@ export function advanceCelebration(session: GameSession, decisions: CompletionDe
     : nextProjectProgress;
 
   const carryoverResources: readonly CarryoverResource[] =
-    decisions.longLastingFoodChoice === "pasilikti-kitai-sventei" && view.plan.longLastingSnackLeftovers > 0
+    decisions.longLastingFoodChoice === "keep-for-next-party" && view.plan.longLastingSnackLeftovers > 0
       ? [{ kind: "long-lasting-snack-portions", amount: view.plan.longLastingSnackLeftovers, sourceCelebration: session.campaign.celebrationNumber }]
       : [];
 
@@ -226,7 +226,7 @@ export function advanceCelebration(session: GameSession, decisions: CompletionDe
       plantGrowth: Math.min(
         MAX_PLANT_GROWTH,
         session.campaign.plantGrowth
-          + Number(decisions.spoilingFoodChoice === "kompostuoti")
+          + Number(decisions.spoilingFoodChoice === "compost")
           + Number(decisions.moneyAllocation.fertilizer),
       ),
       wholeSchoolCelebration: startsWholeSchoolCelebration,
@@ -253,9 +253,9 @@ export function toggleReusableAllocation(
 
   const view = deriveGameView(session);
   const item = view.game.items.find((candidate) => candidate.id === itemId);
-  if (item?.reusable !== true || item.price <= 0) throw new Error(`Daikto „${itemId}“ negalima pirkti po šventės.`);
+  if (item?.reusable !== true || item.price <= 0) throw new Error(`Item "${itemId}" cannot be purchased after the party.`);
   if (moneyAllocationTotal(view.game, allocation) + item.price > completionFunds(view.plan)) {
-    throw new Error(`Daugkartiniam daiktui „${itemId}“ neužtenka nepaskirstytų pinigų.`);
+    throw new Error(`There are not enough unallocated funds for reusable item "${itemId}".`);
   }
   return { ...allocation, reusableItemIds: [...allocation.reusableItemIds, itemId] };
 }
@@ -267,7 +267,7 @@ export function toggleFertilizerAllocation(
   if (allocation.fertilizer) return { ...allocation, fertilizer: false };
   const view = deriveGameView(session);
   if (moneyAllocationTotal(view.game, allocation) + FERTILIZER_COST > completionFunds(view.plan)) {
-    throw new Error("Trąšoms neužtenka nepaskirstytų pinigų.");
+    throw new Error("There are not enough unallocated funds for fertilizer.");
   }
   return { ...allocation, fertilizer: true };
 }
@@ -277,7 +277,7 @@ export function toggleUpgradeAllocation(
   allocation: MoneyAllocation,
   upgradeId: UpgradeId,
 ): MoneyAllocation {
-  if (session.campaign.ownedUpgradeIds.includes(upgradeId)) throw new Error(`Patobulinimas „${upgradeId}“ jau įsigytas.`);
+  if (session.campaign.ownedUpgradeIds.includes(upgradeId)) throw new Error(`Upgrade "${upgradeId}" is already owned.`);
   if (allocation.upgradeIds.includes(upgradeId)) {
     return { ...allocation, upgradeIds: allocation.upgradeIds.filter((id) => id !== upgradeId) };
   }
@@ -285,7 +285,7 @@ export function toggleUpgradeAllocation(
   const view = deriveGameView(session);
   const upgrade = upgradeDefinition(upgradeId);
   if (moneyAllocationTotal(view.game, allocation) + upgrade.price > completionFunds(view.plan)) {
-    throw new Error(`Patobulinimui „${upgradeId}“ neužtenka nepaskirstytų pinigų.`);
+    throw new Error(`There are not enough unallocated funds for upgrade "${upgradeId}".`);
   }
   return { ...allocation, upgradeIds: [...allocation.upgradeIds, upgradeId] };
 }
@@ -300,12 +300,12 @@ export function toggleProjectAllocation(
   const progress = session.campaign.projectProgress[projectId];
   const target = projectDefinition(projectId).target;
   if (![current, progress, target].every(Number.isInteger) || current < 0 || progress < 0 || target <= 0) {
-    throw new Error(`Projekto „${projectId}“ eiga turi būti neneigiama sveikoji suma.`);
+    throw new Error(`Progress for project "${projectId}" must be a non-negative integer.`);
   }
-  if (progress + current > target) throw new Error(`Projektui „${projectId}“ jau skirta per daug pinigų.`);
+  if (progress + current > target) throw new Error(`Project "${projectId}" is already funded beyond its target.`);
 
   const availableFunds = completionFunds(view.plan) - moneyAllocationTotal(view.game, allocation);
-  if (availableFunds < 0) throw new Error("Paskirstyta daugiau pinigų, nei jų liko.");
+  if (availableFunds < 0) throw new Error("The allocation exceeds the remaining funds.");
   const increment = Math.min(PROJECT_ALLOCATION_STEP, target - progress - current, availableFunds);
   return changeProjectAllocation(allocation, projectId, increment > 0 ? current + increment : 0);
 }
@@ -315,6 +315,6 @@ function changeProjectAllocation(
   projectId: ProjectId,
   amount: number,
 ): MoneyAllocation {
-  if (!Number.isInteger(amount) || amount < 0) throw new Error("Projektui skiriama suma turi būti neneigiama.");
+  if (!Number.isInteger(amount) || amount < 0) throw new Error("The project allocation must be a non-negative integer.");
   return { ...allocation, projectAmounts: { ...allocation.projectAmounts, [projectId]: amount } };
 }

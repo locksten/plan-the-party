@@ -19,7 +19,7 @@ export type PaperAirplaneFlybyModel = Readonly<{
 
 function nextRandom(random: () => number): number {
   const value = random();
-  assert(Number.isFinite(value) && value >= 0 && value < 1, "Atsitiktinė reikšmė turi būti intervale [0, 1).");
+  assert(Number.isFinite(value) && value >= 0 && value < 1, "The random value must be in the [0, 1) interval.");
   return value;
 }
 
@@ -31,7 +31,7 @@ export function createPaperAirplaneFlybyDelay(random: () => number = Math.random
 export function createPaperAirplaneFlyby(random: () => number = Math.random): PaperAirplaneFlybyModel {
   const sourceIndex = Math.floor(nextRandom(random) * PAPER_AIRPLANE_FLYBY_SOURCES.length);
   const source = PAPER_AIRPLANE_FLYBY_SOURCES[sourceIndex];
-  assert(source !== undefined, "Nerastas popierinio lėktuvėlio paveikslėlis.");
+  assert(source !== undefined, "No paper-airplane image source was found.");
   const direction: FlybyDirection = nextRandom(random) < 0.5 ? "left-to-right" : "right-to-left";
   const driftVh = -50 + nextRandom(random) * 100;
   const tiltDegrees = driftVh * (direction === "left-to-right" ? 0.35 : -0.35);
@@ -43,7 +43,7 @@ export function createPaperAirplaneFlyby(random: () => number = Math.random): Pa
     PAPER_AIRPLANE_FLYBY_MAX_TOP_PERCENT,
     PAPER_AIRPLANE_FLYBY_MAX_TOP_PERCENT - driftVh,
   );
-  assert(minimumTopPercent <= maximumTopPercent, "Lėktuvėlio skrydžio trajektorija netelpa ekrane.");
+  assert(minimumTopPercent <= maximumTopPercent, "The paper-airplane flight path does not fit on screen.");
 
   return {
     source,

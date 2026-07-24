@@ -1,8 +1,11 @@
 import { type CategoryId, type ChallengeId, type EventId, type GameItem, type GameConfig, type ItemId, type ItemTag } from "../../domain";
 import { ITEM_ART_SOURCES } from "../../itemArt";
-import { CATEGORIES, classes, formatEuros } from "../../ui";
+import { classes } from "../../ui";
 import { ChallengeStrip } from "./ChallengeStrip";
 import { EventStrip } from "./EventStrip";
+import { useI18n } from "../../i18n/I18nProvider";
+
+const CATEGORIES = ["decorations", "drinks", "snacks", "activities"] as const satisfies readonly CategoryId[];
 
 type SupplyShelfProps = {
   game: GameConfig;
@@ -22,10 +25,11 @@ type SupplyShelfProps = {
 };
 
 export function SupplyShelf({ game, addableItemIds, category, completedChallengeIds, activeEventIds, revealedEventIds, eventCardsNeedAttention, shoppingCardOwned, shoppingCardSelected, onCategory, onPlace, onToggleShoppingCardDiscount, onOpenChallenges, onOpenEvents }: SupplyShelfProps) {
+  const { translations } = useI18n();
   const categoryItems = game.items.filter((item) => item.category === category);
 
   return (
-    <aside className="flex min-h-0 min-w-0 flex-col" aria-label="Daiktų pasirinkimai">
+    <aside className="flex min-h-0 min-w-0 flex-col" aria-label={translations.shelf.label}>
       <div className="flex min-h-0 flex-1 flex-col gap-1 pt-11">
         <div className="shelf-items game-scrollbar min-h-0 pr-2">
           <div className="grid content-center gap-0 [grid-auto-rows:4.75rem]">
@@ -42,20 +46,20 @@ export function SupplyShelf({ game, addableItemIds, category, completedChallenge
             ))}
           </div>
         </div>
-        <div className="mt-1 grid shrink-0 grid-cols-2 gap-1" aria-label="Pasirinkimų grupės">
-          {CATEGORIES.map((item) => (
+        <div className="mt-1 grid shrink-0 grid-cols-2 gap-1" role="group" aria-label={translations.shelf.categoryGroups}>
+          {CATEGORIES.map((categoryId) => (
             <button
-              key={item.id}
+              key={categoryId}
               type="button"
-              aria-pressed={category === item.id}
+              aria-pressed={category === categoryId}
               className={classes(
                 "min-h-11 rounded-lg border-[0.125rem] border-navy bg-cream px-1 text-[0.9375rem] font-black text-navy",
-                (item.id === "papildomai" || item.id === "veikla") && "col-span-2",
-                category === item.id && "bg-yellow shadow-[inset_0_-0.1875rem_0_#e1a72b]",
+                (categoryId === "decorations" || categoryId === "activities") && "col-span-2",
+                category === categoryId && "bg-yellow shadow-[inset_0_-0.1875rem_0_#e1a72b]",
               )}
-              onClick={() => onCategory(item.id)}
+              onClick={() => onCategory(categoryId)}
             >
-              {item.label}
+              {translations.categories[categoryId]}
             </button>
           ))}
         </div>
@@ -85,8 +89,9 @@ type ShelfItemProps = {
 };
 
 function ShelfItem({ item, unavailable, shoppingCardEligible, shoppingCardSelected, onPlace, onToggleShoppingCardDiscount }: ShelfItemProps) {
-  const hypeTags = item.tags?.filter((tag) => tag.tone === "hype") ?? [];
-  const standardTags = item.tags?.filter((tag) => tag.tone === "standard") ?? [];
+  const { translations, formatCurrency } = useI18n();
+  const hypeTags = item.tags?.filter((tag) => tag.kind === "hype") ?? [];
+  const standardTags = item.tags?.filter((tag) => tag.kind !== "hype") ?? [];
   const displayTags = [...standardTags, ...hypeTags];
   const originalPrice = item.originalPrice;
   const shoppingCardDiscount = item.shoppingCardDiscount ?? 0;
@@ -96,17 +101,18 @@ function ShelfItem({ item, unavailable, shoppingCardEligible, shoppingCardSelect
   const shoppingCardTarget = shoppingCardEligible && shoppingCardSelected;
   const actionLabel = shoppingCardTarget
     ? priceDecreased
-      ? "Pašalinti pirkėjo kortelės nuolaidą."
-      : "Pritaikyti pirkėjo kortelės nuolaidą."
+      ? translations.shelf.removeShoppingCard
+      : translations.shelf.applyShoppingCard
     : item.locked === true
-      ? "Užrakinta."
+      ? translations.shelf.locked
       : unavailable
-        ? "Daugiau pridėti negalima."
-        : "Palieskite, kad pridėtumėte ant stalo.";
+        ? translations.shelf.cannotAddMore
+        : translations.shelf.addToTable;
   const priceChangeLabel = [
-    priceIncreased ? `kaina padidėjo nuo ${formatEuros(originalPrice)} iki ${formatEuros(priceBeforeShoppingCard)}` : null,
-    priceDecreased ? `pirkėjo kortelė kainą sumažino ${formatEuros(shoppingCardDiscount)} iki ${formatEuros(item.price)}` : null,
+    priceIncreased ? translations.shelf.priceIncreased(formatCurrency(originalPrice), formatCurrency(priceBeforeShoppingCard)) : null,
+    priceDecreased ? translations.shelf.priceDecreased(formatCurrency(shoppingCardDiscount), formatCurrency(item.price)) : null,
   ].filter((label) => label !== null).join(", ");
+  const itemName = translations.items[item.id];
 
   return (
     <button
@@ -116,7 +122,12 @@ function ShelfItem({ item, unavailable, shoppingCardEligible, shoppingCardSelect
       )}
       type="button"
       disabled={unavailable && !shoppingCardTarget}
-      aria-label={`${item.name}, ${priceChangeLabel === "" ? formatEuros(item.price) : priceChangeLabel}${item.portions === undefined ? "" : `, porcijų skaičius ${item.portions}`}. ${actionLabel}`}
+      aria-label={translations.shelf.itemLabel(
+        itemName,
+        priceChangeLabel === "" ? formatCurrency(item.price) : priceChangeLabel,
+        item.portions === undefined ? "" : translations.shelf.portions(item.portions),
+        actionLabel,
+      )}
       onClick={shoppingCardTarget ? onToggleShoppingCardDiscount : onPlace}
     >
       <div className={classes(
@@ -136,13 +147,13 @@ function ShelfItem({ item, unavailable, shoppingCardEligible, shoppingCardSelect
           {item.portions !== undefined && <span className="absolute bottom-[0.1875rem] right-0 text-[1.875rem] font-black leading-none text-white [-webkit-text-stroke:0.25rem_#17233f] [paint-order:stroke_fill]">{item.portions}</span>}
         </div>
         <div className="min-w-0 self-center pl-1">
-          <strong className="block text-[1.1875rem] leading-[1.05]">{item.name}</strong>
+          <strong className="block text-[1.1875rem] leading-[1.05]">{itemName}</strong>
         </div>
         <div className={classes(
           "grid h-full aspect-square place-items-center self-center justify-self-center rounded-full bg-yellow text-center text-xl font-black tracking-[-0.06em] text-orange-dark",
           priceIncreased && !priceDecreased && "!text-[#d21f2b]",
           priceDecreased && "!bg-blue !text-[#102a56]",
-        )}>{formatEuros(item.price)}</div>
+        )}>{formatCurrency(item.price)}</div>
         {item.hype === true && !unavailable && (
           <span className="pointer-events-none absolute inset-0 z-20 overflow-hidden rounded-full" aria-hidden="true">
             <span className="hype-card-sheen absolute inset-y-0 left-0 w-2/5" />
@@ -155,21 +166,22 @@ function ShelfItem({ item, unavailable, shoppingCardEligible, shoppingCardSelect
 }
 
 function ItemTags({ tags }: { tags: readonly ItemTag[] }) {
+  const { translations } = useI18n();
   if (tags.length === 0) return null;
 
   return (
     <span className="absolute right-2 top-0 z-30 flex -translate-y-1/2 items-center gap-1">
-      {tags.map((tag) => (
+      {tags.map((tag, index) => (
         <span
           className={classes(
             "rounded-full border-navy font-black leading-none tracking-[-0.01em]",
-            tag.tone === "hype"
+            tag.kind === "hype"
               ? "hype-tag-pulse -rotate-2 border-[0.1875rem] bg-blue px-2 py-1 text-[0.6875rem] shadow-[0_0.125rem_0_#17233f]"
               : "border-[0.125rem] bg-yellow px-2 py-0.5 text-[0.625rem]",
           )}
-          key={`${tag.tone}:${tag.label}`}
+          key={`${tag.kind}:${index}`}
         >
-          <span className="relative top-[0.0625rem]">{tag.label}</span>
+          <span className="relative top-[0.0625rem]">{translations.itemTag(tag)}</span>
         </span>
       ))}
     </span>

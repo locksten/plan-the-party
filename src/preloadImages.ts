@@ -8,7 +8,7 @@ function loadAtLowPriority(source: string): Promise<void> {
     const image = new Image();
     image.fetchPriority = "low";
     image.onload = () => resolve();
-    image.onerror = () => reject(new Error(`Nepavyko iš anksto įkelti paveikslėlio „${source}“.`));
+    image.onerror = () => reject(new Error(`Failed to preload image "${source}".`));
     image.src = source;
   });
 }

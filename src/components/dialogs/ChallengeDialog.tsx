@@ -5,6 +5,7 @@ import { CHALLENGE_ART_SOURCES } from "../../cardArt";
 import { CHALLENGES, type Challenge, type ChallengeId } from "../../domain";
 import { classes } from "../../ui";
 import { CardBoardDialog } from "./DialogShell";
+import { useI18n } from "../../i18n/I18nProvider";
 
 type FocusedChallenge = Readonly<{
   challengeId: ChallengeId;
@@ -16,6 +17,7 @@ export function ChallengeDialog({ completedChallengeIds, onClose }: {
   completedChallengeIds: ReadonlySet<ChallengeId>;
   onClose: () => void;
 }) {
+  const { translations } = useI18n();
   const [focusedChallenge, setFocusedChallenge] = useState<FocusedChallenge | null>(null);
   const focusedOverlayRef = useRef<HTMLButtonElement>(null);
   const cardRefs = useRef(new Map<ChallengeId, HTMLButtonElement>());
@@ -42,15 +44,15 @@ export function ChallengeDialog({ completedChallengeIds, onClose }: {
   let focusedChallengeData: Challenge | null = null;
   if (focusedChallenge !== null) {
     focusedChallengeData = CHALLENGES.find((challenge) => challenge.id === focusedChallenge.challengeId) ?? null;
-    assert(focusedChallengeData !== null, "Padidintas iššūkis turi priklausyti iššūkių lentai.");
+    assert(focusedChallengeData !== null, "The focused challenge must belong to the challenge board.");
   }
 
   return (
     <>
       <CardBoardDialog
         labelledBy="challenge-title"
-        title="Iššūkių lenta"
-        description="Siekite tiek iššūkių, kiek norite – įvykdyti iššūkiai pažymimi automatiškai"
+        title={translations.challenges.title}
+        description={translations.challenges.description}
         onClose={onClose}
       >
         {CHALLENGES.map((challenge) => {
@@ -64,7 +66,7 @@ export function ChallengeDialog({ completedChallengeIds, onClose }: {
               }}
               key={challenge.id}
               type="button"
-              aria-label={`${challenge.title}. Padidinti kortelę.`}
+              aria-label={translations.cardBoard.enlargeCard(translations.challengeCards[challenge.id].title)}
               className={classes(
                 "h-full min-h-0 w-full rounded-2xl outline-none hover:-translate-y-0.5 focus-visible:outline-[0.25rem] focus-visible:outline-yellow",
                 isFocused && "opacity-0",
@@ -99,6 +101,8 @@ export function ChallengeDialog({ completedChallengeIds, onClose }: {
 }
 
 function ChallengeCard({ challenge, isComplete, isZoomed = false }: { challenge: Challenge; isComplete: boolean; isZoomed?: boolean }) {
+  const { translations } = useI18n();
+  const copy = translations.challengeCards[challenge.id];
   return (
     <span
       className={classes(
@@ -113,8 +117,8 @@ function ChallengeCard({ challenge, isComplete, isZoomed = false }: { challenge:
       <span className="grid h-32 w-36 place-items-center" aria-hidden="true">
         <img className="h-32 w-36 object-contain" src={CHALLENGE_ART_SOURCES[challenge.id]} alt="" draggable={false} />
       </span>
-      <strong className="mt-3 text-xl">{challenge.title}</strong>
-      <small className="mt-2 text-sm leading-[1.35] text-muted">{challenge.description}</small>
+      <strong className="mt-3 text-xl">{copy.title}</strong>
+      <small className="mt-2 text-sm leading-[1.35] text-muted">{copy.description(challenge)}</small>
     </span>
   );
 }
@@ -126,13 +130,14 @@ function FocusedChallengeOverlay({ focusedChallenge, challenge, isComplete, over
   overlayRef: RefObject<HTMLButtonElement | null>;
   onDismiss: () => void;
 }) {
+  const { translations } = useI18n();
   const viewportPadding = 40;
   const scale = Math.min(
     2.35,
     (window.innerWidth - viewportPadding * 2) / focusedChallenge.origin.width,
     (window.innerHeight - viewportPadding * 2) / focusedChallenge.origin.height,
   );
-  assert(scale >= 1, "Padidinamai iššūkio kortelei ekrane neužtenka vietos.");
+  assert(scale >= 1, "The focused challenge card does not fit on screen.");
   const targetLeft = (window.innerWidth - focusedChallenge.origin.width * scale) / 2;
   const targetTop = (window.innerHeight - focusedChallenge.origin.height * scale) / 2;
   const isExpanded = focusedChallenge.phase === "focused";
@@ -145,7 +150,7 @@ function FocusedChallengeOverlay({ focusedChallenge, challenge, isComplete, over
         !isExpanded && "bg-[#0b1429]/0",
       )}
       type="button"
-      aria-label={`${challenge.title}. Grąžinti kortelę į vietą.`}
+      aria-label={translations.cardBoard.returnCard(translations.challengeCards[challenge.id].title)}
       onClick={onDismiss}
     >
       <span

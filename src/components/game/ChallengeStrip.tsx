@@ -1,6 +1,7 @@
 import { CHALLENGE_ART_SOURCES } from "../../cardArt";
 import { CHALLENGES, type ChallengeId } from "../../domain";
 import { classes } from "../../ui";
+import { useI18n } from "../../i18n/I18nProvider";
 
 type ChallengeStripProps = {
   completedChallengeIds: ReadonlySet<ChallengeId>;
@@ -8,6 +9,7 @@ type ChallengeStripProps = {
 };
 
 export function ChallengeStrip({ completedChallengeIds, onOpen }: ChallengeStripProps) {
+  const { translations } = useI18n();
   const challengeStates = CHALLENGES.map((challenge) => ({
     challenge,
     isComplete: completedChallengeIds.has(challenge.id),
@@ -19,16 +21,16 @@ export function ChallengeStrip({ completedChallengeIds, onOpen }: ChallengeStrip
       className="grid h-[2.875rem] w-full grid-cols-8 items-center rounded-lg outline-none focus-visible:outline-[0.25rem] focus-visible:outline-yellow active:translate-y-0.5"
       type="button"
       onClick={onOpen}
-      aria-label={`Atverti iššūkius. Įvykdyta ${completedCount} iš ${challengeStates.length}.`}
+      aria-label={translations.challenges.openWithProgress(completedCount, challengeStates.length)}
     >
       {challengeStates.map(({ challenge, isComplete }) => {
-        const status = isComplete ? "įvykdytas" : "dar neįvykdytas";
+        const status = isComplete ? translations.challenges.completed : translations.challenges.incomplete;
 
         return (
           <span
             key={challenge.id}
             className="grid h-[2.875rem] min-w-0 place-items-center"
-            title={`${challenge.title} — ${status}`}
+            title={`${translations.challengeCards[challenge.id].title} — ${status}`}
           >
             <img
               className={classes(

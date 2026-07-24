@@ -1,4 +1,5 @@
 import { IconButton } from "../ui/IconButton";
+import { useI18n } from "../../i18n/I18nProvider";
 
 type GameCornerControlsProps = {
   onHome: () => void;
@@ -13,9 +14,10 @@ type HelpFullscreenButtonsProps = {
 };
 
 function HelpFullscreenButtons({ onHelp, onFullscreen }: HelpFullscreenButtonsProps) {
+  const { translations } = useI18n();
   return (
     <>
-      <IconButton className="pointer-events-auto" shape="round" tone="cream" type="button" onClick={onHelp} aria-label="Kaip žaisti?" title="Kaip žaisti?">
+      <IconButton className="pointer-events-auto" shape="round" tone="cream" type="button" onClick={onHelp} aria-label={translations.controls.help} title={translations.controls.help}>
         <span className="text-xl font-black leading-none" aria-hidden="true">?</span>
       </IconButton>
       <FullscreenButton onFullscreen={onFullscreen} />
@@ -24,8 +26,9 @@ function HelpFullscreenButtons({ onHelp, onFullscreen }: HelpFullscreenButtonsPr
 }
 
 export function FullscreenButton({ onFullscreen }: { onFullscreen: () => void }) {
+  const { translations } = useI18n();
   return (
-    <IconButton className="pointer-events-auto" shape="round" tone="cream" type="button" onClick={onFullscreen} aria-label="Per visą ekraną" title="Per visą ekraną">
+    <IconButton className="pointer-events-auto" shape="round" tone="cream" type="button" onClick={onFullscreen} aria-label={translations.controls.fullscreen} title={translations.controls.fullscreen}>
       <svg className="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
         <path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5" />
       </svg>
@@ -34,9 +37,10 @@ export function FullscreenButton({ onFullscreen }: { onFullscreen: () => void })
 }
 
 export function GameCornerControls({ onHome, onOpenSettings, onHelp, onFullscreen }: GameCornerControlsProps) {
+  const { translations } = useI18n();
   return (
-    <nav className="layer-ui pointer-events-none absolute inset-x-3 top-3 flex justify-between" aria-label="Žaidimo valdymas">
-      <IconButton className="pointer-events-auto" shape="round" tone="cream" type="button" onClick={onHome} aria-label="Grįžti" title="Grįžti">
+    <nav className="layer-ui pointer-events-none absolute inset-x-3 top-3 flex justify-between" aria-label={translations.controls.game}>
+      <IconButton className="pointer-events-auto" shape="round" tone="cream" type="button" onClick={onHome} aria-label={translations.controls.back} title={translations.controls.back}>
         <svg className="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <path d="m15 18-6-6 6-6" />
         </svg>
@@ -48,8 +52,8 @@ export function GameCornerControls({ onHome, onOpenSettings, onHelp, onFullscree
           tone="cream"
           type="button"
           onClick={onOpenSettings}
-          aria-label="Nustatymai"
-          title="Nustatymai"
+          aria-label={translations.controls.settings}
+          title={translations.controls.settings}
         >
           <svg className="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <circle cx="12" cy="12" r="3" />

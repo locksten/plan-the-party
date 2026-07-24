@@ -4,6 +4,7 @@ import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/react";
 
 import { App } from "./App";
+import { I18nProvider } from "./i18n/I18nProvider";
 import "./fonts.css";
 import "./styles.css";
 
@@ -31,9 +32,11 @@ async function renderApp(container: HTMLElement) {
 
   createRoot(container).render(
     <StrictMode>
-      <App />
-      <Analytics />
-      <SpeedInsights />
+      <I18nProvider>
+        <App />
+        <Analytics />
+        <SpeedInsights />
+      </I18nProvider>
     </StrictMode>,
   );
 }
