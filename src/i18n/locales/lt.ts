@@ -88,6 +88,9 @@ export const lithuanianTranslations = {
   },
   table: {
     label: "Klasės šventės stalas",
+    quantityMissing: (amount: number) => `Trūksta ${amount}`,
+    quantityExtra: (amount: number) => `Liks ${amount}`,
+    quantityEnough: "Pakanka",
     shoppingCard: (discount: string) => `Nuolaidų kortelė. Pasirinkite kortelę, tada prekę, kad jai pritaikytumėte iki ${discount} nuolaidą.`,
     removeItem: (name: string, portions: number | undefined) =>
       `${name}${portions === undefined ? "" : `, ${lithuanianQuantity(portions, PORTION_FORMS)}`}. Palieskite, kad nuimtumėte vieną.`,

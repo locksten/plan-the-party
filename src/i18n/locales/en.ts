@@ -84,6 +84,9 @@ export const englishTranslations = {
   },
   table: {
     label: "Class party table",
+    quantityMissing: (amount: number) => `Need ${amount} more`,
+    quantityExtra: (amount: number) => `${amount} extra`,
+    quantityEnough: "Enough",
     shoppingCard: (discount: string) => `Discount card. Select the card, then choose an item to take up to ${discount} off its price.`,
     removeItem: (name: string, portions: number | undefined) =>
       `${name}${portions === undefined ? "" : `, ${englishQuantity(portions, "portion", "portions")}`}. Select to remove one.`,

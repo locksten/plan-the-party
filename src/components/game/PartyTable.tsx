@@ -203,7 +203,11 @@ function TableZone({ category, title, items, people, covered = 0, carried = 0, e
         />
       )}
       {(category === "decorations" || category === "activities") && (
-        <ChoiceDots selected={selectedChoices} required={requiredChoices} />
+        <ChoiceDots
+          selected={selectedChoices}
+          required={requiredChoices}
+          className={category === "activities" ? "top-1.5" : undefined}
+        />
       )}
     </section>
   );
@@ -248,6 +252,8 @@ function SeatDots({ items, people, covered, carried, eventSupplied }: {
   return (
     <QuantityDots
       count={dotCount}
+      balance={covered - people}
+      labelPosition="above"
       groupSizes={groupSizes}
       ungroupedFromIndex={empty > 0 ? filled : undefined}
       label={`${label}${carriedLabel}${eventLabel}`}
@@ -303,7 +309,7 @@ function groupsOfAtMostFive(count: number): readonly number[] {
   return Array.from({ length: Math.ceil(count / 5) }, (_, groupIndex) => Math.min(5, count - groupIndex * 5));
 }
 
-function ChoiceDots({ selected, required }: { selected: number | undefined; required: number | undefined }) {
+function ChoiceDots({ selected, required, className }: { selected: number | undefined; required: number | undefined; className?: string }) {
   const { translations } = useI18n();
   assert(selected !== undefined && required !== undefined, "Activity and decoration zones require choice counts.");
   assert(Number.isInteger(selected) && selected >= 0, "The selected choice count must be a non-negative integer.");
@@ -318,6 +324,9 @@ function ChoiceDots({ selected, required }: { selected: number | undefined; requ
   return (
     <QuantityDots
       count={dotCount}
+      balance={selected - required}
+      className={className}
+      labelPosition="left"
       label={label}
       classNameForIndex={(index) => classes(
         index < required && "border-[0.125rem] border-navy",
@@ -329,14 +338,24 @@ function ChoiceDots({ selected, required }: { selected: number | undefined; requ
   );
 }
 
-function QuantityDots({ count, groupSizes, ungroupedFromIndex, label, classNameForIndex }: {
+function QuantityDots({ count, balance, labelPosition, groupSizes, ungroupedFromIndex, label, className, classNameForIndex }: {
   count: number;
+  balance: number;
+  labelPosition: "above" | "left";
   groupSizes?: readonly number[];
   ungroupedFromIndex?: number;
   label: string;
+  className?: string;
   classNameForIndex: (index: number) => string;
 }) {
+  const { translations } = useI18n();
   assert(Number.isInteger(count) && count > 0, "The dot count must be a positive integer.");
+  assert(Number.isInteger(balance), "The quantity balance must be an integer.");
+  const balanceLabel = balance < 0
+    ? translations.table.quantityMissing(-balance)
+    : balance > 0
+      ? translations.table.quantityExtra(balance)
+      : translations.table.quantityEnough;
   const resolvedGroupSizes = groupSizes ?? groupsOfAtMostFive(count);
   assert(resolvedGroupSizes.every((size) => Number.isInteger(size) && size > 0), "Every dot group must contain at least one dot.");
   assert(resolvedGroupSizes.reduce((total, size) => total + size, 0) === count, "Dot groups must account for every dot.");
@@ -351,10 +370,21 @@ function QuantityDots({ count, groupSizes, ungroupedFromIndex, label, classNameF
   }
   return (
     <div
-      className="relative z-10 flex w-fit max-w-full flex-wrap items-center justify-start gap-x-0.5 gap-y-1 self-center"
+      className={classes("relative flex w-fit max-w-full flex-wrap items-center justify-start gap-x-0.5 gap-y-1 self-center", className)}
       role="img"
-      aria-label={label}
+      aria-label={`${balanceLabel}. ${label}`}
     >
+      <span
+        className={classes(
+          "pointer-events-none absolute -z-10 whitespace-nowrap text-[clamp(0.875rem,1.25vw,1.125rem)] font-black leading-tight text-cream opacity-40",
+          labelPosition === "left"
+            ? "right-full top-1/2 mr-2 -translate-y-1/2"
+            : "bottom-full left-1/2 mb-1 -translate-x-1/2",
+        )}
+        aria-hidden="true"
+      >
+        {balanceLabel}
+      </span>
       {groups.map((group, groupIndex) => (
         <span
           className={classes(
