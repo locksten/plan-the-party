@@ -8,7 +8,6 @@ import {
   type EventCard,
   type GameItem,
   type GamePlan,
-  type ItemId,
   type ProjectId,
   type ProjectProgress,
   type UpgradeId,
@@ -27,7 +26,6 @@ export type CompletionScreenView = Readonly<{
   completedChallenges: readonly Challenge[];
   completion: CompletionView;
   projectProgress: ProjectProgress;
-  selectedItemIds: ReadonlySet<ItemId>;
 }>;
 
 export type CompletionScreenActions = Readonly<{
@@ -62,7 +60,7 @@ export function CompletionScreen({ view, decisions, actions }: {
   actions: CompletionScreenActions;
 }) {
   const { translations } = useI18n();
-  const { plan, activeEvents, completedChallenges, completion, projectProgress, selectedItemIds } = view;
+  const { plan, activeEvents, completedChallenges, completion, projectProgress } = view;
   const { spoilingFoodChoice, longLastingFoodChoice, moneyAllocation } = decisions;
   const hasSpoilingFood = plan.spoilingSnackPortions > 0;
   const hasSpoilingLeftovers = plan.spoilingSnackLeftovers > 0;
@@ -162,7 +160,7 @@ export function CompletionScreen({ view, decisions, actions }: {
             </div>
             <MoneyDecision
               unallocated={completion.unallocatedMoney}
-              hasDepositBottles={selectedItemIds.has("deposit-bottles")}
+              depositRefund={plan.depositRefund}
               reusableItems={completion.availableReusableItems}
               upgrades={completion.availableUpgrades}
               projects={completion.fundableProjects}

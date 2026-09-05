@@ -143,7 +143,6 @@ export function MissionGame({ mission, onHome, onFullscreen }: MissionGameProps)
             completedChallenges: view.completedChallenges,
             completion,
             projectProgress: session.campaign.projectProgress,
-            selectedItemIds: view.selectedItemIds,
           }}
           decisions={completionDecisions}
           actions={{

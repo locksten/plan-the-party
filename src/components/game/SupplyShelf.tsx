@@ -1,4 +1,5 @@
-import { type CategoryId, type ChallengeId, type EventId, type GameItem, type GameConfig, type ItemId, type ItemTag } from "../../domain";
+import { type CategoryId, type ChallengeId, type EventId, type GameItem, type GameConfig, type ItemId } from "../../domain";
+import { ItemTags } from "../ItemTags";
 import { ITEM_ART_SOURCES } from "../../itemArt";
 import { classes } from "../../ui";
 import { ChallengeStrip } from "./ChallengeStrip";
@@ -159,31 +160,8 @@ function ShelfItem({ item, unavailable, shoppingCardEligible, shoppingCardSelect
             <span className="hype-card-sheen absolute inset-y-0 left-0 w-2/5" />
           </span>
         )}
-        <ItemTags tags={displayTags} />
+        <ItemTags tags={displayTags} className="right-2 top-0 -translate-y-1/2" />
       </div>
     </button>
-  );
-}
-
-function ItemTags({ tags }: { tags: readonly ItemTag[] }) {
-  const { translations } = useI18n();
-  if (tags.length === 0) return null;
-
-  return (
-    <span className="absolute right-2 top-0 z-30 flex -translate-y-1/2 items-center gap-1">
-      {tags.map((tag, index) => (
-        <span
-          className={classes(
-            "rounded-full border-navy font-black leading-none tracking-[-0.01em]",
-            tag.kind === "hype"
-              ? "hype-tag-pulse -rotate-2 border-[0.1875rem] bg-blue px-2 py-1 text-[0.6875rem] shadow-[0_0.125rem_0_#17233f]"
-              : "border-[0.125rem] bg-yellow px-2 py-0.5 text-[0.625rem]",
-          )}
-          key={`${tag.kind}:${index}`}
-        >
-          <span className="relative top-[0.0625rem]">{translations.itemTag(tag)}</span>
-        </span>
-      ))}
-    </span>
   );
 }

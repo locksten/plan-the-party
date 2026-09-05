@@ -16,10 +16,11 @@ import { META_ART_SOURCES } from "../../metaArt";
 import { classes } from "../../ui";
 import { SelectedMark } from "./SelectedMark";
 import { useI18n } from "../../i18n/I18nProvider";
+import { ItemTags } from "../ItemTags";
 
-export function MoneyDecision({ unallocated, hasDepositBottles, reusableItems, upgrades, projects, projectProgress, allocation, onToggleFertilizer, onToggleReusable, onToggleUpgrade, onToggleProject }: {
+export function MoneyDecision({ unallocated, depositRefund, reusableItems, upgrades, projects, projectProgress, allocation, onToggleFertilizer, onToggleReusable, onToggleUpgrade, onToggleProject }: {
   unallocated: number;
-  hasDepositBottles: boolean;
+  depositRefund: number;
   reusableItems: readonly GameItem[];
   upgrades: readonly UpgradeDefinition[];
   projects: readonly ProjectDefinition[];
@@ -31,18 +32,25 @@ export function MoneyDecision({ unallocated, hasDepositBottles, reusableItems, u
   onToggleProject: (projectId: ProjectId) => void;
 }) {
   const { translations, formatCurrency } = useI18n();
+  assert(Number.isFinite(depositRefund) && depositRefund >= 0, "The deposit refund must be a non-negative amount.");
   return (
     <section className="grid min-w-0 grid-rows-[11.875rem_minmax(0,1fr)] px-3 pb-3 pt-6 text-center">
       <div className="relative flex min-h-0 flex-col items-center justify-center">
         <div className="flex min-h-0 w-full flex-1 items-center justify-center gap-2">
           <img className="h-full min-h-0 w-auto max-w-[10.625rem] scale-110 object-contain" src={COMPLETION_ART_SOURCES.money} alt="" draggable={false} />
-          {hasDepositBottles && (
-            <img
-              className="h-[82%] min-h-0 w-auto max-w-[8.5rem] object-contain"
-              src={COMPLETION_ART_SOURCES["empty-deposit-bottles"]}
-              alt=""
-              draggable={false}
-            />
+          {depositRefund > 0 && (
+            <div className="relative h-[82%] min-h-0">
+              <img
+                className="h-full w-auto max-w-[8.5rem] object-contain"
+                src={COMPLETION_ART_SOURCES["empty-deposit-bottles"]}
+                alt=""
+                draggable={false}
+              />
+              <ItemTags
+                tags={[{ kind: "deposit", amount: depositRefund }]}
+                className="bottom-0 left-1/2 -translate-x-1/2 whitespace-nowrap"
+              />
+            </div>
           )}
         </div>
         <h3 className="m-0 text-[clamp(1.25rem,1.8vw,1.75rem)] leading-none">{translations.completion.remainingMoney}</h3>
