@@ -1,3 +1,4 @@
+import type { PointerEvent } from "react";
 import { assert } from "../../assert";
 import { LONG_LASTING_FOOD_SOURCE } from "../../completionArt";
 import { SHOPPING_CARD_DISCOUNT, type CategoryId, type GamePlan, type ItemId, type ResolvedPlacement } from "../../domain";
@@ -15,10 +16,12 @@ type PartyTableProps = {
   shoppingCardSelected: boolean;
   showProblems: boolean;
   onShoppingCardSelectedChange: (selected: boolean) => void;
+  onShoppingCardPointerDown: (event: PointerEvent<HTMLButtonElement>) => void;
   onRemoveAt: (selectionIndex: number) => void;
+  onItemPointerDown: (event: PointerEvent<HTMLButtonElement>, placement: ResolvedPlacement) => void;
 };
 
-export function PartyTable({ placements, selectedItemIds, plan, shoppingCardOwned, shoppingCardSelected, showProblems, onShoppingCardSelectedChange, onRemoveAt }: PartyTableProps) {
+export function PartyTable({ placements, selectedItemIds, plan, shoppingCardOwned, shoppingCardSelected, showProblems, onShoppingCardSelectedChange, onShoppingCardPointerDown, onRemoveAt, onItemPointerDown }: PartyTableProps) {
   const { translations, formatCurrency } = useI18n();
   const selectedByCategory = (category: CategoryId) => placements.filter((placement) => placement.item.category === category);
   const needsDecoration = showProblems && plan.decorationChoices < plan.requiredDecorationChoices;
@@ -34,7 +37,7 @@ export function PartyTable({ placements, selectedItemIds, plan, shoppingCardOwne
         {shoppingCardOwned && (
           <button
             className={classes(
-              "absolute bottom-[clamp(2.25rem,3vw,3.25rem)] left-[clamp(3rem,4vw,4.5rem)] z-[15] h-[clamp(3.05rem,4.49vw,4.17rem)] aspect-[1.559] select-none rounded-[12%] outline-none transition duration-300 ease-out focus-visible:ring-[0.25rem] focus-visible:ring-blue focus-visible:ring-offset-1",
+              "absolute bottom-[clamp(2.25rem,3vw,3.25rem)] left-[clamp(3rem,4vw,4.5rem)] z-[15] h-[clamp(3.05rem,4.49vw,4.17rem)] aspect-[1.559] touch-none select-none rounded-[12%] outline-none transition duration-300 ease-out focus-visible:ring-[0.25rem] focus-visible:ring-blue focus-visible:ring-offset-1",
               shoppingCardSelected
                 ? "-translate-x-1/2 -translate-y-full -rotate-[30deg] ring-[0.25rem] ring-blue ring-offset-1"
                 : "-rotate-6 active:translate-y-0.5",
@@ -43,6 +46,7 @@ export function PartyTable({ placements, selectedItemIds, plan, shoppingCardOwne
             aria-pressed={shoppingCardSelected}
             aria-label={translations.table.shoppingCard(formatCurrency(SHOPPING_CARD_DISCOUNT))}
             onClick={() => onShoppingCardSelectedChange(!shoppingCardSelected)}
+            onPointerDown={onShoppingCardPointerDown}
           >
             <img className="size-full object-contain" src={META_ART_SOURCES["shopping-card"]} alt="" draggable={false} />
           </button>
@@ -62,6 +66,7 @@ export function PartyTable({ placements, selectedItemIds, plan, shoppingCardOwne
             items={selectedByCategory("decorations")}
             selectedChoices={plan.decorationChoices}
             requiredChoices={plan.requiredDecorationChoices}
+            onItemPointerDown={onItemPointerDown}
             onRemoveAt={onRemoveAt}
           />
           <div className="grid min-h-0 grid-cols-2">
@@ -71,6 +76,7 @@ export function PartyTable({ placements, selectedItemIds, plan, shoppingCardOwne
               items={selectedByCategory("drinks")}
               people={plan.participants.total}
               covered={plan.drinkPortions}
+              onItemPointerDown={onItemPointerDown}
               onRemoveAt={onRemoveAt}
             />
             <TableZone
@@ -81,6 +87,7 @@ export function PartyTable({ placements, selectedItemIds, plan, shoppingCardOwne
               covered={plan.snackPortions}
               carried={plan.carriedSnackPortions}
               eventSupplied={plan.eventSuppliedSnackPortions}
+              onItemPointerDown={onItemPointerDown}
               onRemoveAt={onRemoveAt}
             />
           </div>
@@ -90,6 +97,7 @@ export function PartyTable({ placements, selectedItemIds, plan, shoppingCardOwne
             items={selectedByCategory("activities")}
             selectedChoices={plan.activityChoices}
             requiredChoices={plan.requiredActivityChoices}
+            onItemPointerDown={onItemPointerDown}
             onRemoveAt={onRemoveAt}
           />
         </div>
@@ -149,6 +157,7 @@ type TableZoneProps = {
   selectedChoices?: number;
   requiredChoices?: number;
   onRemoveAt: (selectionIndex: number) => void;
+  onItemPointerDown: (event: PointerEvent<HTMLButtonElement>, placement: ResolvedPlacement) => void;
 };
 
 const zoneItemAlignment: Readonly<Record<CategoryId, string>> = {
@@ -158,7 +167,7 @@ const zoneItemAlignment: Readonly<Record<CategoryId, string>> = {
   activities: "translate-y-3.5",
 };
 
-function TableZone({ category, title, items, people, covered = 0, carried = 0, eventSupplied = 0, selectedChoices, requiredChoices, onRemoveAt }: TableZoneProps) {
+function TableZone({ category, title, items, people, covered = 0, carried = 0, eventSupplied = 0, selectedChoices, requiredChoices, onRemoveAt, onItemPointerDown }: TableZoneProps) {
   const { translations } = useI18n();
   const itemsRef = useAutoAnimateRef<HTMLDivElement>({ duration: 220, easing: "ease-out" });
 
@@ -183,10 +192,11 @@ function TableZone({ category, title, items, people, covered = 0, carried = 0, e
         {items.map(({ placementId, item, selectionIndex }) => (
           <button
             key={placementId}
-            className="relative h-[clamp(4.6875rem,9vw,9.125rem)] max-h-full aspect-square shrink-0 select-none"
+            className="relative h-[clamp(4.6875rem,9vw,9.125rem)] max-h-full aspect-square shrink-0 touch-none select-none"
             type="button"
             aria-label={translations.table.removeItem(translations.items[item.id], item.portions)}
             onClick={() => onRemoveAt(selectionIndex)}
+            onPointerDown={(event) => onItemPointerDown(event, { placementId, item, selectionIndex })}
           >
             <ItemImage item={item} className="size-full" />
           </button>

@@ -1,3 +1,4 @@
+import type { PointerEvent } from "react";
 import { type CategoryId, type ChallengeId, type EventId, type GameItem, type GameConfig, type ItemId } from "../../domain";
 import { ItemTags } from "../ItemTags";
 import { ITEM_ART_SOURCES } from "../../itemArt";
@@ -20,12 +21,13 @@ type SupplyShelfProps = {
   shoppingCardSelected: boolean;
   onCategory: (category: CategoryId) => void;
   onPlace: (item: GameItem) => void;
+  onItemPointerDown: (event: PointerEvent<HTMLButtonElement>, item: GameItem) => void;
   onToggleShoppingCardDiscount: (item: GameItem) => void;
   onOpenChallenges: () => void;
   onOpenEvents: () => void;
 };
 
-export function SupplyShelf({ game, addableItemIds, category, completedChallengeIds, activeEventIds, revealedEventIds, eventCardsNeedAttention, shoppingCardOwned, shoppingCardSelected, onCategory, onPlace, onToggleShoppingCardDiscount, onOpenChallenges, onOpenEvents }: SupplyShelfProps) {
+export function SupplyShelf({ game, addableItemIds, category, completedChallengeIds, activeEventIds, revealedEventIds, eventCardsNeedAttention, shoppingCardOwned, shoppingCardSelected, onCategory, onPlace, onItemPointerDown, onToggleShoppingCardDiscount, onOpenChallenges, onOpenEvents }: SupplyShelfProps) {
   const { translations } = useI18n();
   const categoryItems = game.items.filter((item) => item.category === category);
 
@@ -42,6 +44,7 @@ export function SupplyShelf({ game, addableItemIds, category, completedChallenge
                 shoppingCardEligible={shoppingCardOwned && item.price + (item.shoppingCardDiscount ?? 0) > 0}
                 shoppingCardSelected={shoppingCardSelected}
                 onPlace={() => onPlace(item)}
+                onPointerDown={(event) => onItemPointerDown(event, item)}
                 onToggleShoppingCardDiscount={() => onToggleShoppingCardDiscount(item)}
               />
             ))}
@@ -86,10 +89,11 @@ type ShelfItemProps = {
   shoppingCardEligible: boolean;
   shoppingCardSelected: boolean;
   onPlace: () => void;
+  onPointerDown: (event: PointerEvent<HTMLButtonElement>) => void;
   onToggleShoppingCardDiscount: () => void;
 };
 
-function ShelfItem({ item, unavailable, shoppingCardEligible, shoppingCardSelected, onPlace, onToggleShoppingCardDiscount }: ShelfItemProps) {
+function ShelfItem({ item, unavailable, shoppingCardEligible, shoppingCardSelected, onPlace, onPointerDown, onToggleShoppingCardDiscount }: ShelfItemProps) {
   const { translations, formatCurrency } = useI18n();
   const hypeTags = item.tags?.filter((tag) => tag.kind === "hype") ?? [];
   const standardTags = item.tags?.filter((tag) => tag.kind !== "hype") ?? [];
@@ -118,11 +122,12 @@ function ShelfItem({ item, unavailable, shoppingCardEligible, shoppingCardSelect
   return (
     <button
       className={classes(
-        "relative flex min-h-0 w-full select-none items-end pt-3 text-left outline-none transition focus-visible:ring-[0.25rem] focus-visible:ring-yellow",
+        "relative flex min-h-0 w-full touch-pan-y select-none items-end pt-3 text-left outline-none transition focus-visible:ring-[0.25rem] focus-visible:ring-yellow",
         unavailable && !shoppingCardTarget ? "cursor-not-allowed grayscale opacity-45" : "active:translate-y-0.5",
       )}
       type="button"
       disabled={unavailable && !shoppingCardTarget}
+      data-shopping-card-item={shoppingCardEligible ? item.id : undefined}
       aria-label={translations.shelf.itemLabel(
         itemName,
         priceChangeLabel === "" ? formatCurrency(item.price) : priceChangeLabel,
@@ -130,6 +135,7 @@ function ShelfItem({ item, unavailable, shoppingCardEligible, shoppingCardSelect
         actionLabel,
       )}
       onClick={shoppingCardTarget ? onToggleShoppingCardDiscount : onPlace}
+      onPointerDown={unavailable ? undefined : onPointerDown}
     >
       <div className={classes(
         "relative isolate grid h-16 w-full grid-cols-[4.75rem_minmax(0,1fr)_auto] items-center gap-2 rounded-full border-[0.1875rem] border-navy bg-paper pl-1 shadow-[0_0.1875rem_0_#17233f] transition",
