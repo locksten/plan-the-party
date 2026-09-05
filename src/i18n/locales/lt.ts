@@ -68,7 +68,7 @@ export const lithuanianTranslations = {
   controls: {
     game: "Žaidimo valdymas",
     back: "Grįžti",
-    settings: "Nustatymai",
+    settings: "Sudėtingumo nustatymai",
     help: "Kaip žaisti?",
     fullscreen: "Per visą ekraną",
   },
@@ -160,7 +160,7 @@ export const lithuanianTranslations = {
     ],
   },
   settings: {
-    title: "Žaidimo nustatymai",
+    title: "Sudėtingumo nustatymai",
     budget: "Biudžetas",
     students: "Mokiniai",
     decreaseBudget: "Atimti vieną eurą",

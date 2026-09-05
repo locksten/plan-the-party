@@ -64,7 +64,7 @@ export const englishTranslations = {
   controls: {
     game: "Game controls",
     back: "Back to the home screen",
-    settings: "Settings",
+    settings: "Difficulty settings",
     help: "How to play",
     fullscreen: "Fullscreen",
   },
@@ -152,7 +152,7 @@ export const englishTranslations = {
     ],
   },
   settings: {
-    title: "Game settings",
+    title: "Difficulty settings",
     budget: "Budget",
     students: "Students",
     decreaseBudget: "Subtract one euro",
