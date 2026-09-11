@@ -1,14 +1,14 @@
 import { assert } from "./assert";
 import { createMissionState, type MissionState } from "./mission";
 
-const STORAGE_VERSION = 16;
+const STORAGE_VERSION = 17;
 const SAVE_KEY = "plan-the-party:saves";
 
 type StorageAdapter = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 
 export type SavedMissionSummary = Readonly<{
   id: string;
-  classLabel: string;
+  planNumber: number;
 }>;
 
 export type MissionDraft = Readonly<{
@@ -16,17 +16,17 @@ export type MissionDraft = Readonly<{
   state: MissionState;
 }>;
 
-export type SavedMission = SavedMissionSummary & Readonly<{ state: MissionState }>;
+export type SavedMission = MissionDraft & SavedMissionSummary;
 export type ActiveMission = MissionDraft | SavedMission;
 
 type SaveFile = Readonly<{
   version: typeof STORAGE_VERSION;
-  nextClassNumber: number;
+  nextPlanNumber: number;
   missions: readonly SavedMission[];
 }>;
 
 function emptySaveFile(): SaveFile {
-  return { version: STORAGE_VERSION, nextClassNumber: 0, missions: [] };
+  return { version: STORAGE_VERSION, nextPlanNumber: 1, missions: [] };
 }
 
 function loadSaveFile(storage: StorageAdapter): SaveFile {
@@ -56,21 +56,10 @@ function writeSaveFile(storage: StorageAdapter, saveFile: SaveFile) {
   storage.setItem(SAVE_KEY, JSON.stringify(saveFile));
 }
 
-export function classLabelForNumber(number: number): string {
-  assert(Number.isInteger(number) && number >= 0, "The class number must be a non-negative integer.");
-  let remaining = number;
-  let label = "";
-  do {
-    label = String.fromCharCode(65 + (remaining % 26)) + label;
-    remaining = Math.floor(remaining / 26) - 1;
-  } while (remaining >= 0);
-  return label;
-}
-
 export function loadMissionSummaries(storage: StorageAdapter = localStorage): readonly SavedMissionSummary[] {
   return [...loadSaveFile(storage).missions]
     .reverse()
-    .map(({ id, classLabel }) => ({ id, classLabel }));
+    .map(({ id, planNumber }) => ({ id, planNumber }));
 }
 
 export function createMissionDraft(id: string = crypto.randomUUID()): MissionDraft {
@@ -81,12 +70,12 @@ export function saveMission(id: string, state: MissionState, storage: StorageAda
   const saveFile = loadSaveFile(storage);
   const existing = saveFile.missions.find((mission) => mission.id === id);
   const mission: SavedMission = existing === undefined
-    ? { id, classLabel: classLabelForNumber(saveFile.nextClassNumber), state }
+    ? { id, planNumber: saveFile.nextPlanNumber, state }
     : { ...existing, state };
 
   writeSaveFile(storage, {
     version: STORAGE_VERSION,
-    nextClassNumber: existing === undefined ? saveFile.nextClassNumber + 1 : saveFile.nextClassNumber,
+    nextPlanNumber: existing === undefined ? saveFile.nextPlanNumber + 1 : saveFile.nextPlanNumber,
     missions: existing === undefined
       ? [...saveFile.missions, mission]
       : saveFile.missions.map((candidate) => candidate.id === id ? mission : candidate),

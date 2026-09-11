@@ -50,10 +50,8 @@ export const englishTranslations = {
     screenControls: "Screen controls",
     heroLines: ["What will", "your class", "choose?"],
     start: "Start planning →",
-    continueClass: (classLabel: string) => `Continue with Class ${classLabel}`,
-    deleteClassSave: (classLabel: string) => `Delete Class ${classLabel}’s progress`,
-    confirmDeleteTitle: (classLabel: string) => `Delete Class ${classLabel}’s progress?`,
-    confirmDeleteDescription: "All progress for this class will be lost.",
+    continuePlan: (planNumber: number) => `Continue Plan ${planNumber}`,
+    deletePlan: (planNumber: number) => `Delete Plan ${planNumber}`,
     tiles: [
       { title: "Choose", text: "Drinks, snacks, activities and decorations" },
       { title: "Work it out", text: "Will you have enough money and portions?" },

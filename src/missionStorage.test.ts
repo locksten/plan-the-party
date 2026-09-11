@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { addItem, adjustBudget } from "./domain/session";
 import {
-  classLabelForNumber,
   createMissionDraft,
   deleteSavedMission,
   loadMissionSummaries,
@@ -22,19 +21,13 @@ function memoryStorage() {
 }
 
 describe("mission storage", () => {
-  it("assigns stable sequential class labels", () => {
-    expect(classLabelForNumber(0)).toBe("A");
-    expect(classLabelForNumber(25)).toBe("Z");
-    expect(classLabelForNumber(26)).toBe("AA");
-  });
-
   it("deletes saves with mismatched storage versions", () => {
     const storage = memoryStorage();
     storage.values.set("plan-the-party:saves", JSON.stringify({ version: 1, missions: [{ id: "old" }] }));
 
     expect(loadMissionSummaries(storage)).toEqual([]);
     expect(storage.values.has("plan-the-party:saves")).toBe(false);
-    storage.values.set("plan-the-party:saves", JSON.stringify({ version: 15 }));
+    storage.values.set("plan-the-party:saves", JSON.stringify({ version: 16 }));
 
     expect(loadMissionSummaries(storage)).toEqual([]);
     expect(storage.values.has("plan-the-party:saves")).toBe(false);
@@ -49,10 +42,13 @@ describe("mission storage", () => {
 
     const first = saveMission(firstDraft.id, firstDraft.state, storage);
     const second = saveMission(secondDraft.id, secondDraft.state, storage);
-    expect(first.classLabel).toBe("A");
-    expect(second.classLabel).toBe("B");
+    expect(first.planNumber).toBe(1);
+    expect(second.planNumber).toBe(2);
     expect(storage.values.size).toBe(1);
-    expect(loadMissionSummaries(storage).map((mission) => mission.id)).toEqual(["second", "first"]);
+    expect(loadMissionSummaries(storage)).toEqual([
+      { id: "second", planNumber: 2 },
+      { id: "first", planNumber: 1 },
+    ]);
 
     const changedSession = adjustBudget(addItem(first.state.session, "water-station"), 1);
     saveMission(first.id, {
@@ -62,6 +58,7 @@ describe("mission storage", () => {
       eventCardsCue: "opened",
     }, storage);
 
+    expect(loadSavedMission(first.id, storage).planNumber).toBe(1);
     expect(loadSavedMission(first.id, storage).state).toMatchObject({
       session: {
         round: {
@@ -79,6 +76,10 @@ describe("mission storage", () => {
     expect(() => loadSavedMission(first.id, storage)).toThrow("was not found");
 
     const thirdDraft = createMissionDraft("third");
-    expect(saveMission(thirdDraft.id, thirdDraft.state, storage).classLabel).toBe("C");
+    expect(saveMission(thirdDraft.id, thirdDraft.state, storage).planNumber).toBe(3);
+    expect(loadMissionSummaries(storage)).toEqual([
+      { id: "third", planNumber: 3 },
+      { id: "second", planNumber: 2 },
+    ]);
   });
 });

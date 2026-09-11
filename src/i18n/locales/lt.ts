@@ -54,10 +54,8 @@ export const lithuanianTranslations = {
     screenControls: "Ekrano valdymas",
     heroLines: ["Ką pasirinks", "jūsų", "klasė?"],
     start: "Pradėti planuoti →",
-    continueClass: (classLabel: string) => `Tęsti su ${classLabel} klase`,
-    deleteClassSave: (classLabel: string) => `Pašalinti ${classLabel} klasės įrašą`,
-    confirmDeleteTitle: (classLabel: string) => `Pašalinti ${classLabel} klasės įrašą?`,
-    confirmDeleteDescription: "Visa šios klasės pažanga bus prarasta.",
+    continuePlan: (planNumber: number) => `Tęsti planą ${planNumber}`,
+    deletePlan: (planNumber: number) => `Pašalinti planą ${planNumber}`,
     tiles: [
       { title: "Rinkitės", text: "Vaišes, veiklas ir papuošimus" },
       { title: "Skaičiuokite", text: "Ar užteks pinigų ir porcijų?" },

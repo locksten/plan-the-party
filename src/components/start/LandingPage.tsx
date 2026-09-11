@@ -26,10 +26,10 @@ type LandingPageProps = {
   missions: readonly SavedMissionSummary[];
   onStart: () => void;
   onContinue: (id: string) => void;
-  onRequestDelete: (mission: SavedMissionSummary) => void;
+  onDelete: (id: string) => void;
 };
 
-export function LandingPage({ missions, onStart, onContinue, onRequestDelete }: LandingPageProps) {
+export function LandingPage({ missions, onStart, onContinue, onDelete }: LandingPageProps) {
   const { translations } = useI18n();
   return (
     <section className="grid h-dvh grid-cols-[0.82fr_1.18fr]">
@@ -49,22 +49,22 @@ export function LandingPage({ missions, onStart, onContinue, onRequestDelete }: 
         </button>
 
         {missions.length > 0 && (
-          <div className="game-scrollbar relative mt-7 flex max-h-[23.75rem] w-full max-w-[32.5rem] flex-col gap-3 overflow-y-auto pb-2 pr-3 pt-1">
+          <div className="game-scrollbar relative mt-9 flex max-h-[23.75rem] w-full max-w-[24rem] flex-col gap-2 overflow-y-auto pb-2 pr-3 pt-1">
             {missions.map((mission) => (
-              <div className="flex gap-2" key={mission.id}>
+              <div className="flex items-center rounded-xl bg-cream/35 p-1 transition-colors hover:bg-cream/60" key={mission.id}>
                 <button
-                  className="min-h-14 min-w-0 flex-1 rounded-xl border-[0.1875rem] border-navy bg-cream px-5 text-left text-xl font-black shadow-[0_0.25rem_0_#17233f] hover:-translate-y-px hover:bg-white active:translate-y-1 active:shadow-none"
+                  className="min-h-11 min-w-0 flex-1 rounded-lg px-3 text-left text-lg font-bold text-navy focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy"
                   type="button"
                   onClick={() => onContinue(mission.id)}
                 >
-                  {translations.landing.continueClass(mission.classLabel)}
+                  {translations.landing.continuePlan(mission.planNumber)}
                 </button>
                 <button
-                  className="grid size-14 shrink-0 place-items-center rounded-xl border-[0.1875rem] border-navy bg-cream text-[2rem] font-black leading-none shadow-[0_0.25rem_0_#17233f] hover:-translate-y-px hover:bg-white active:translate-y-1 active:shadow-none"
+                  className="grid size-11 shrink-0 place-items-center rounded-lg text-2xl font-medium leading-none text-navy/70 transition-colors hover:text-navy focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy"
                   type="button"
-                  aria-label={translations.landing.deleteClassSave(mission.classLabel)}
-                  title={translations.landing.deleteClassSave(mission.classLabel)}
-                  onClick={() => onRequestDelete(mission)}
+                  aria-label={translations.landing.deletePlan(mission.planNumber)}
+                  title={translations.landing.deletePlan(mission.planNumber)}
+                  onClick={() => onDelete(mission.id)}
                 >
                   ×
                 </button>
