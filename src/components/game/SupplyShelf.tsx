@@ -1,4 +1,4 @@
-import type { PointerEvent } from "react";
+import { useRef, type PointerEvent } from "react";
 import { type CategoryId, type ChallengeId, type EventId, type GameItem, type GameConfig, type ItemId } from "../../domain";
 import { ItemTags } from "../ItemTags";
 import { ITEM_ART_SOURCES } from "../../itemArt";
@@ -94,6 +94,7 @@ type ShelfItemProps = {
 };
 
 function ShelfItem({ item, unavailable, shoppingCardEligible, shoppingCardSelected, onPlace, onPointerDown, onToggleShoppingCardDiscount }: ShelfItemProps) {
+  const dragHandleRef = useRef<HTMLDivElement>(null);
   const { translations, formatCurrency } = useI18n();
   const hypeTags = item.tags?.filter((tag) => tag.kind === "hype") ?? [];
   const standardTags = item.tags?.filter((tag) => tag.kind !== "hype") ?? [];
@@ -135,13 +136,19 @@ function ShelfItem({ item, unavailable, shoppingCardEligible, shoppingCardSelect
         actionLabel,
       )}
       onClick={shoppingCardTarget ? onToggleShoppingCardDiscount : onPlace}
-      onPointerDown={unavailable ? undefined : onPointerDown}
+      onPointerDown={unavailable ? undefined : (event) => {
+        // Fingers and pens drag from the picture; the rest of the row can scroll.
+        // Keep the button as currentTarget so pointer capture stays on the source.
+        if (event.pointerType === "mouse" || (event.target instanceof Node && dragHandleRef.current?.contains(event.target))) {
+          onPointerDown(event);
+        }
+      }}
     >
       <div className={classes(
         "relative isolate grid h-16 w-full grid-cols-[4.75rem_minmax(0,1fr)_auto] items-center gap-2 rounded-full border-[0.1875rem] border-navy bg-paper pl-1 shadow-[0_0.1875rem_0_#17233f] transition",
         shoppingCardTarget && "shopping-card-target-highlight ring-[0.25rem] ring-blue ring-offset-1",
       )}>
-        <div className="relative z-10 h-full w-[4.75rem]" aria-hidden="true">
+        <div ref={dragHandleRef} className={classes("relative z-10 h-full w-[4.75rem]", !unavailable && "touch-none")} aria-hidden="true">
           <img
             className={classes(
               "absolute -left-1 bottom-0 size-20 object-contain object-bottom",
