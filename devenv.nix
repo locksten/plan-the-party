@@ -4,7 +4,7 @@
   packages = [
     pkgs.imagemagick
     pkgs.libwebp
-    # Pillow is required by Codex's imagegen skill chroma-key removal helper.
+    # Pillow renders bundled Nunito text in brand assets and supports imagegen helpers.
     (pkgs.python3.withPackages (pythonPackages: [ pythonPackages.pillow ]))
   ];
 
