@@ -386,7 +386,7 @@ function QuantityDots({ count, balance, labelPosition, groupSizes, ungroupedFrom
     >
       <span
         className={classes(
-          "pointer-events-none absolute -z-10 whitespace-nowrap text-[clamp(0.875rem,1.25vw,1.125rem)] font-black leading-tight text-cream opacity-40",
+          "pointer-events-none absolute -z-10 whitespace-nowrap text-[clamp(1rem,1.5vw,1.375rem)] font-black leading-tight text-cream opacity-40",
           labelPosition === "left"
             ? "right-full top-1/2 mr-2 -translate-y-1/2"
             : "bottom-full left-1/2 mb-1 -translate-x-1/2",
