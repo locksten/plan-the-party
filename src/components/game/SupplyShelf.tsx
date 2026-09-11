@@ -123,7 +123,7 @@ function ShelfItem({ item, unavailable, shoppingCardEligible, shoppingCardSelect
     <button
       className={classes(
         "relative flex min-h-0 w-full touch-pan-y select-none items-end pt-3 text-left outline-none transition focus-visible:ring-[0.25rem] focus-visible:ring-yellow",
-        unavailable && !shoppingCardTarget ? "cursor-not-allowed grayscale opacity-45" : "active:translate-y-0.5",
+        unavailable && !shoppingCardTarget ? "cursor-default grayscale opacity-45" : "active:translate-y-0.5",
       )}
       type="button"
       disabled={unavailable && !shoppingCardTarget}

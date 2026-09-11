@@ -15,7 +15,7 @@ type SettingsDialogProps = {
   onClose: () => void;
 };
 
-const settingsStepButton = "grid size-11 place-items-center rounded-full border-[0.1875rem] border-navy bg-yellow text-[1.75rem] font-black leading-none disabled:cursor-not-allowed disabled:opacity-35";
+const settingsStepButton = "grid size-11 place-items-center rounded-full border-[0.1875rem] border-navy bg-yellow text-[1.75rem] font-black leading-none disabled:cursor-default disabled:opacity-35";
 
 export function SettingsDialog({ budget, participants, canDecreaseBudget, canIncreaseBudget, canDecreaseParticipants, canIncreaseParticipants, onBudgetChange, onParticipantChange, onClose }: SettingsDialogProps) {
   const { translations, formatCurrency } = useI18n();

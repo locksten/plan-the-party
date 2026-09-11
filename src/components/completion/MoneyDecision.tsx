@@ -99,7 +99,7 @@ export function MoneyDecision({ unallocated, depositRefund, reusableItems, upgra
           return (
             <button
               key={item.id}
-              className="group flex w-[9.375rem] min-w-0 flex-col items-center rounded-xl px-1 py-1 outline-none focus-visible:ring-[0.25rem] focus-visible:ring-blue disabled:cursor-not-allowed disabled:grayscale disabled:opacity-35"
+              className="group flex w-[9.375rem] min-w-0 flex-col items-center rounded-xl px-1 py-1 outline-none focus-visible:ring-[0.25rem] focus-visible:ring-blue disabled:cursor-default disabled:grayscale disabled:opacity-35"
               type="button"
               aria-pressed={selected}
               disabled={disabled}
@@ -132,7 +132,7 @@ function FixedMoneyOption({ label, artSource, price, selected, disabled, onToggl
 }) {
   return (
     <button
-      className="group flex w-[9.375rem] min-w-0 flex-col items-center rounded-xl px-1 py-1 outline-none focus-visible:ring-[0.25rem] focus-visible:ring-blue disabled:cursor-not-allowed disabled:grayscale disabled:opacity-35"
+      className="group flex w-[9.375rem] min-w-0 flex-col items-center rounded-xl px-1 py-1 outline-none focus-visible:ring-[0.25rem] focus-visible:ring-blue disabled:cursor-default disabled:grayscale disabled:opacity-35"
       type="button"
       aria-pressed={selected}
       disabled={disabled}
@@ -196,7 +196,7 @@ function MoneyAmountOption({ projectId, label, artSource, amount, unallocated, m
 
   return (
     <button
-      className="group flex w-[9.375rem] min-w-0 flex-col items-center rounded-xl px-1 py-1 outline-none focus-visible:ring-[0.25rem] focus-visible:ring-blue disabled:cursor-not-allowed disabled:grayscale disabled:opacity-35"
+      className="group flex w-[9.375rem] min-w-0 flex-col items-center rounded-xl px-1 py-1 outline-none focus-visible:ring-[0.25rem] focus-visible:ring-blue disabled:cursor-default disabled:grayscale disabled:opacity-35"
       type="button"
       disabled={!selected && !canAdvance}
       aria-label={translations.completion.projectProgressLabel(label, totalProgress, progress.target, actionDescription)}
